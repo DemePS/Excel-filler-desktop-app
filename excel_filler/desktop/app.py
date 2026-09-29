@@ -84,14 +84,14 @@ class WindowApi:
         return list(result or [])
 
     def pick_document_folder(self, folder: str) -> str | None:
-        """A folder dialog, for the folder holding the documents (it shows folders only)."""
-        result = self._window.create_file_dialog(folder_dialog(), directory=folder)
-        return (result[0] if isinstance(result, (list, tuple)) else result) or None
-
-
-def folder_dialog():
-    import webview
-    return webview.FileDialog.FOLDER if hasattr(webview, "FileDialog") else webview.FOLDER_DIALOG
+        """The folder holding the documents, chosen by picking one of its documents: the Windows folder
+        dialog shows no files, so this is an "Open" dialog showing the PDFs and images, and the folder
+        of the chosen document is used."""
+        result = self._window.create_file_dialog(
+            open_dialog(), directory=folder, allow_multiple=False,
+            file_types=("Documents (*.pdf;*.png;*.jpg;*.jpeg;*.webp)", "All files (*.*)"))
+        chosen = (result[0] if isinstance(result, (list, tuple)) else result) if result else None
+        return str(Path(chosen).parent) if chosen else None
 
 
 def open_dialog():
