@@ -95,7 +95,8 @@ Invoke-WebRequest <gatewayUrl>/v1/messages -Method Post -Body '{}' -ContentType 
 
 ## 4. Build the app for your organization
 
-In the GitHub repository: **Settings > Secrets and variables > Actions > Variables**, add:
+The build is `azure-pipelines.yml` at the root of the repository (Azure DevOps). In the Azure DevOps
+project: **Pipelines > Library**, create the variable group **excel-filler** with:
 
 | Variable | Value |
 |---|---|
@@ -104,12 +105,17 @@ In the GitHub repository: **Settings > Secrets and variables > Actions > Variabl
 | `EXCEL_FILLER_CLIENT_ID` | `clientAppId` |
 | `EXCEL_FILLER_TENANT_ID` | `tenantId` |
 
-Optionally, the `SIGNING_*` variables too, so that Windows trusts the app (see
-`docs/code-signing.md`).
+For code signing (so that Windows trusts the app, see `docs/code-signing.md`): add `SIGNING_ENDPOINT`,
+`SIGNING_ACCOUNT` and `SIGNING_PROFILE` to the group, create the service connection
+`excel-filler-signing`, and run the pipeline with the parameter **sign** set to true.
 
-Then push to the `api-management` branch, or push a tag `vX.Y.Z` to also publish a GitHub Release.
-The build writes these values into the app (`organization.json`), tests it on Windows, signs it when
-configured, and publishes the zip that employees download.
+Then create the pipeline from `azure-pipelines.yml` and push to the `api-management` branch, or push a
+tag `vX.Y.Z` for a release. The pipeline writes these values into the app (`organization.json`),
+tests it on Windows, signs it when asked, and publishes the zip as the pipeline artifact
+`ExcelFiller-<version>-windows`. Distribute it with Intune or a file share.
+
+(`.github/workflows/windows-app.yml` is the same build on GitHub Actions, with repository variables of
+the same names.)
 
 ## Day to day
 
