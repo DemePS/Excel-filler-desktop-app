@@ -222,3 +222,4 @@ frontend/node_modules/
 # PyInstaller
 /build/
 /dist/
+!packaging/excel-filler.spec
