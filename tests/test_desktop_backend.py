@@ -126,3 +126,15 @@ def test_the_real_server_accepts_the_window_websocket():
         assert asyncio.run(hello())["type"] == "hello"
     finally:
         server.should_exit = True
+
+
+def test_the_launcher_imports_without_a_console(tmp_path):
+    """Started as a windowed app on Windows, sys.stdout/stderr are None: importing must not crash."""
+    import subprocess
+    import sys
+    marker = tmp_path / "ok"
+    code = ("import sys; sys.stdout = sys.stderr = None\n"
+            "import excel_filler.desktop.app, excel_filler.desktop.server\n"
+            "open(sys.argv[1], 'w').write('ok')")
+    subprocess.run([sys.executable, "-c", code, str(marker)], check=True)
+    assert marker.read_text() == "ok"
