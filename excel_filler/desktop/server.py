@@ -1,0 +1,199 @@
+"""The local backend of the desktop window: a FastAPI app bound to 127.0.0.1.
+
+The agent runs in a worker thread (one job at a time); its UI calls reach the window as WebSocket
+events, and the window answers approvals and questions with POST /api/answer. Every request must
+carry the per-launch token (a web page in a browser cannot guess it), so nothing else on the
+machine can drive the agent.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import secrets
+import threading
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from coding_agent import session
+
+from .. import agent
+from .webui import WebUI
+
+STATIC_DIR = Path(__file__).parent / "static"
+DOCUMENT_TYPES = (".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".txt", ".csv")
+
+
+class Desktop:
+    """The state of the window's single agent session."""
+
+    def __init__(self) -> None:
+        self.ui = WebUI()
+        self.folder: Path | None = None
+        self.busy = False
+        self.lock = threading.Lock()
+
+    def listing(self) -> dict:
+        if self.folder is None:
+            return {"folder": None, "workbooks": [], "documents": []}
+        files = sorted((p for p in self.folder.iterdir() if p.is_file()), key=lambda p: p.name.lower())
+        return {
+            "folder": str(self.folder),
+            "workbooks": [p.name for p in files if p.suffix.lower() in (".xlsx", ".xlsm") and not p.name.startswith("~$")],
+            "documents": [p.name for p in files if p.suffix.lower() in DOCUMENT_TYPES],
+        }
+
+    def run(self, job) -> None:
+        """Run a job (a function calling the agent) in a worker thread."""
+        with self.lock:
+            if self.busy:
+                raise HTTPException(409, "A job is already running.")
+            self.busy = True
+        self.ui.new_job()
+        self.ui.emit({"type": "busy", "busy": True})
+
+        def worker():
+            try:
+                job()
+            except Exception as e:  # never let the worker die silently
+                self.ui.message(f"[error] {type(e).__name__}: {e}")
+            finally:
+                with self.lock:
+                    self.busy = False
+                self.ui.emit({"type": "busy", "busy": False})
+                self.ui.emit({"type": "listing", **self.listing()})  # the workbook may have changed
+
+        threading.Thread(target=worker, name="agent-job", daemon=True).start()
+
+
+class FolderIn(BaseModel):
+    path: str
+
+
+class JobIn(BaseModel):
+    workbook: str
+    documents: list[str] = []
+    notes: str = ""
+
+
+class TextIn(BaseModel):
+    text: str
+
+
+class AnswerIn(BaseModel):
+    id: str
+    value: str | None = None
+
+
+def connection_problem() -> str | None:
+    """Why the agent cannot reach Claude yet, in plain words (None when the settings look complete)."""
+    if not os.environ.get("ANTHROPIC_FOUNDRY_ENDPOINT"):
+        return "The Claude endpoint is not set up (ANTHROPIC_FOUNDRY_ENDPOINT)."
+    return None
+
+
+def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
+    desktop = desktop or Desktop()
+    app = FastAPI(title="Excel filler", docs_url=None, redoc_url=None, openapi_url=None)
+    app.state.desktop = desktop
+
+    def check(request: Request) -> None:
+        # Only this machine, only with the token handed to the window at launch.
+        host = (request.headers.get("host") or "").split(":")[0]
+        supplied = request.headers.get("x-token") or request.query_params.get("token") or ""
+        if host not in ("127.0.0.1", "localhost", "testserver") or not secrets.compare_digest(supplied, token):
+            raise HTTPException(403, "Forbidden")
+
+    guarded = [Depends(check)]
+
+    @app.get("/api/state", dependencies=guarded)
+    def get_state():
+        return {**desktop.listing(), "busy": desktop.busy, "connection_problem": connection_problem(),
+                "pending": desktop.ui.pending_questions()}
+
+    @app.post("/api/folder", dependencies=guarded)
+    def open_folder(body: FolderIn):
+        if desktop.busy:
+            raise HTTPException(409, "Wait for the current job to finish.")
+        try:
+            desktop.folder = agent.open_folder(body.path, desktop.ui)
+        except (NotADirectoryError, OSError) as e:
+            raise HTTPException(400, str(e))
+        desktop.ui.emit({"type": "listing", **desktop.listing()})
+        return desktop.listing()
+
+    @app.post("/api/job", dependencies=guarded)
+    def start_job(body: JobIn):
+        if desktop.folder is None:
+            raise HTTPException(400, "Choose a folder first.")
+        if problem := connection_problem():
+            raise HTTPException(400, problem)
+        desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes))
+        return {"started": True}
+
+    @app.post("/api/followup", dependencies=guarded)
+    def follow_up(body: TextIn):
+        if desktop.folder is None or not body.text.strip():
+            raise HTTPException(400, "Nothing to send.")
+        desktop.run(lambda: session.send(body.text.strip()))
+        return {"started": True}
+
+    @app.post("/api/answer", dependencies=guarded)
+    def answer(body: AnswerIn):
+        if not desktop.ui.answer(body.id, body.value or ""):
+            raise HTTPException(404, "No such question.")
+        return {"ok": True}
+
+    @app.post("/api/stop", dependencies=guarded)
+    def stop():
+        session.stop()
+        desktop.ui.cancel_questions()
+        return {"ok": True}
+
+    @app.websocket("/ws")
+    async def events(ws: WebSocket):
+        supplied = ws.query_params.get("token") or ""
+        if not secrets.compare_digest(supplied, token):
+            await ws.close(code=4403)
+            return
+        await ws.accept()
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+
+        def listener(event: dict) -> None:
+            loop.call_soon_threadsafe(queue.put_nowait, event)
+
+        history = desktop.ui.subscribe(listener)
+        try:
+            await ws.send_json({"type": "hello", "history": history, "busy": desktop.busy, **desktop.listing(),
+                                "connection_problem": connection_problem()})
+            receiver = asyncio.create_task(ws.receive_text())  # only to notice the window closing
+            while True:
+                getter = asyncio.create_task(queue.get())
+                done, _ = await asyncio.wait({getter, receiver}, return_when=asyncio.FIRST_COMPLETED)
+                if receiver in done:
+                    getter.cancel()
+                    break
+                await ws.send_json(getter.result())
+        except WebSocketDisconnect:
+            pass
+        finally:
+            desktop.ui.unsubscribe(listener)
+
+    if (STATIC_DIR / "index.html").is_file():
+        app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+        @app.get("/")
+        def index():
+            return FileResponse(STATIC_DIR / "index.html")
+    else:
+        @app.get("/")
+        def not_built():
+            return HTMLResponse("<h1>The UI is not built.</h1><p>Run <code>npm install && npm run build</code> "
+                                "in <code>frontend/</code>, then restart.</p>", status_code=503)
+
+    return app

@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Built React UI (npm run build in frontend/)
+excel_filler/desktop/static/
+frontend/node_modules/
