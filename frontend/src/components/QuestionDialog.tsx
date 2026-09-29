@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Question } from '../types'
 import { Change } from './Change'
+import { Markdown } from './Markdown'
 
 const LABELS: Record<string, string> = { yes: 'Approve', no: 'Reject', 'always for this session': 'Always' }
 
@@ -32,7 +33,7 @@ export function QuestionDialog({ question, onAnswer }: { question: Question; onA
           </>
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); onAnswer(text) }}>
-            {question.context && <p className="asked">{question.context}</p>}
+            {question.context && <div className="asked"><Markdown text={question.context} /></div>}
             <label id="question-title" htmlFor="answer">{question.context ? 'Your answer' : question.prompt.replace(/\s*\(.*\)\s*:?\s*$/, '')}</label>
             <textarea id="answer" ref={first} rows={question.multiline ? 5 : 2} value={text}
               onChange={(e) => setText(e.target.value)}

@@ -81,7 +81,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
         </div>
       </fieldset>
       <div className="add-documents">
-        <button onClick={onAddDocumentFolder} disabled={busy} title="Use the PDFs and images of another folder">Choose a documents folder…</button>
+        <button onClick={onAddDocumentFolder} disabled={busy} title="Use the PDFs and images of another folder">Documents folder…</button>
         <button onClick={onAddDocuments} disabled={busy}>Add files…</button>
       </div>
 

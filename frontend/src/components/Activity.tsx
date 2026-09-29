@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import type { Item } from '../types'
 import { Change } from './Change'
+import { Markdown } from './Markdown'
 
 export function Activity({ items, busy, activity }: { items: Item[]; busy: boolean; activity: string }) {
   const end = useRef<HTMLDivElement>(null)
@@ -20,7 +21,7 @@ export function Activity({ items, busy, activity }: { items: Item[]; busy: boole
         <h2>Fill a workbook from your documents</h2>
         <ol>
           <li>Open the workbook to fill. Its folder is where the agent works.</li>
-          <li>Tick the documents to use from that folder, or <b>choose a documents folder</b> if they are elsewhere (read only).</li>
+          <li>Tick the documents to use from that folder, or pick their <b>Documents folder…</b> if they are elsewhere (read only).</li>
           <li>Press <b>Fill workbook</b>. You approve every change before it is saved.</li>
         </ol>
       </div>
@@ -31,7 +32,7 @@ export function Activity({ items, busy, activity }: { items: Item[]; busy: boole
       {visible.map((item, i) => {
         switch (item.kind) {
           case 'claude':
-            return <div key={i} className="claude">{item.text}</div>
+            return <div key={i} className="claude"><Markdown text={item.text} /></div>
           case 'you':
             return <div key={i} className="you">{item.text}</div>
           case 'step':

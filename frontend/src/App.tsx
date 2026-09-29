@@ -37,6 +37,14 @@ export default function App() {
     }
   }, [])
   useEffect(() => { if (connected) checkConnection() }, [connected, checkConnection])
+  // A long check is usually the Microsoft sign-in page waiting in the browser.
+  const [slowCheck, setSlowCheck] = useState(false)
+  useEffect(() => {
+    setSlowCheck(false)
+    if (claude.state !== 'checking') return
+    const timer = window.setTimeout(() => setSlowCheck(true), 3000)
+    return () => window.clearTimeout(timer)
+  }, [claude.state])
 
   useEffect(() => {
     let ws: WebSocket | null = null
@@ -120,7 +128,7 @@ export default function App() {
         <div className="brand"><span className="logo" aria-hidden /> Excel filler</div>
         <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
         <span className={`claude-status ${claude.state}`} title={claude.message}>
-          {claude.state === 'checking' ? 'Checking Claude…' : claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
+          {claude.state === 'checking' ? (slowCheck ? 'Signing in… finish in your browser' : 'Checking Claude…') : claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
         </span>
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy}>
           {listing.folder ? 'Open another workbook…' : 'Open workbook…'}

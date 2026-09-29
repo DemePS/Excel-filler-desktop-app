@@ -4,7 +4,7 @@ Fill an Excel workbook from PDF documents with Claude (Azure / Microsoft Foundry
 every change before it is saved.
 
 You open the workbook and pick the documents (invoices, statements, scans): those next to the
-workbook, a documents folder of their own (**Choose a documents folder…**), or single files from
+workbook, a documents folder of their own (**Documents folder…**), or single files from
 anywhere (**Add files…**). Folders outside the workbook's are read-only for the agent, which only
 ever writes the workbook. It
 opens the workbook first to see which fields are needed, reads only the document pages that hold
@@ -48,8 +48,15 @@ Configuration (environment variables or a `.env` file in the folder you run from
 | Variable | Meaning |
 |---|---|
 | `ANTHROPIC_FOUNDRY_ENDPOINT` | `https://<resource>.services.ai.azure.com/anthropic` |
-| `ANTHROPIC_FOUNDRY_API_KEY` | API key; leave unset to sign in with your Microsoft account (Azure AD) |
+| `ANTHROPIC_FOUNDRY_API_KEY` | API key; leave unset to sign in with your Microsoft work account (below) |
 | `ANTHROPIC_FOUNDRY_DEPLOYMENT` | your Claude deployment name |
+
+**Signing in** (no API key): nothing to install or type. On a company Windows PC the app uses the
+account signed into Windows. Otherwise the Microsoft sign-in page opens in the browser, once; the
+account is remembered and later launches sign in silently. Developers' `az login` also works. The
+account needs access to the Foundry resource (a role such as *Azure AI User*, granted by IT).
+Optional: `AZURE_TENANT_ID` (the resource's tenant, if not your account's) and `AZURE_CLIENT_ID`
+(your organization's app registration for the sign-in page).
 
 A copy of the previous version of every workbook it saves is kept in `~/.coding-agent/backups/`.
 
