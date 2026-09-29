@@ -183,11 +183,12 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
             pass  # the connection dropped while sending
         finally:
             desktop.ui.unsubscribe(listener)
-            tasks = [t for t in (receiver, getter) if t is not None]
-            for task in tasks:
-                task.cancel()
-            # Collect the tasks' outcomes (e.g. the disconnect), so asyncio has nothing left to report.
-            await asyncio.gather(*tasks, return_exceptions=True)
+            for task in (receiver, getter):
+                if task is not None:
+                    # Collect each task's outcome (e.g. the disconnect) when it ends, so asyncio has
+                    # nothing to report -- without awaiting here, which fails if we are being cancelled.
+                    task.add_done_callback(lambda t: t.cancelled() or t.exception())
+                    task.cancel()
 
     if (STATIC_DIR / "index.html").is_file():
         app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
