@@ -13,7 +13,7 @@ of every value. It never invents a value: missing or ambiguous ones are asked or
 
 ## How it is built
 
-The agent engine is the [`codeagent-apim`](https://github.com/DemePS/CodeAgent/tree/api-management)
+The agent engine is the `codeagent-apim`
 package (the `coding_agent` package: agent loop, tools, safety rules, memory, context management), installed as a dependency.
 This project only adds:
 
@@ -77,8 +77,7 @@ uv sync --locked          # fails instead of changing a version if uv.lock is ou
 cd frontend && npm ci     # only to change the UI
 ```
 
-To upgrade something (for example the engine: its version, and the `rev` in `[tool.uv.sources]`
-while it comes from GitHub), change its version, run `uv lock` (or `npm install` in `frontend/`), run the tests, and commit the lock file.
+To upgrade something (for example the engine: its version, and its source in `[tool.uv.sources]`), change its version, run `uv lock` (or `npm install` in `frontend/`), run the tests, and commit the lock file.
 
 ## Tests
 

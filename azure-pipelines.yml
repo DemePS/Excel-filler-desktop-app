@@ -1,5 +1,4 @@
 # The downloadable Windows app on Azure Pipelines: build, test, sign and publish it.
-# (The same build as .github/workflows/windows-app.yml, for organizations on Azure DevOps.)
 #
 # - Every push to api-management: tests, the Windows build, its self-test and a start of the real
 #   window; the zip is published as the pipeline artifact "ExcelFiller-<version>-windows".
@@ -22,9 +21,10 @@
 #    secret) named "excel-filler-signing", whose identity has the role "Trusted Signing Certificate
 #    Profile Signer" on the certificate profile; then set the pipeline parameter "sign" to true
 #    (its default below), or run with it.
-# 3. The agent engine (codeagent-apim) is taken as pinned in uv.lock. If the build agents cannot
-#    reach GitHub, publish codeagent-apim to an Azure Artifacts feed, point [tool.uv.sources] in
-#    pyproject.toml at that feed, run `uv lock`, and authorize this pipeline on the feed.
+# 3. The agent engine (codeagent-apim) is installed as pinned in uv.lock, from the source named in
+#    [tool.uv.sources] (pyproject.toml). To take it from the organization's Azure Artifacts feed:
+#    publish codeagent-apim there, point [tool.uv.sources] at the feed, run `uv lock`, and
+#    authorize this pipeline on the feed.
 
 trigger:
   branches:

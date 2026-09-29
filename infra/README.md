@@ -114,8 +114,6 @@ tag `vX.Y.Z` for a release. The pipeline writes these values into the app (`orga
 tests it on Windows, signs it when asked, and publishes the zip as the pipeline artifact
 `ExcelFiller-<version>-windows`. Distribute it with Intune or a file share.
 
-(`.github/workflows/windows-app.yml` is the same build on GitHub Actions, with repository variables of
-the same names.)
 
 ## Day to day
 
