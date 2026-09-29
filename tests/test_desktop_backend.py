@@ -73,6 +73,7 @@ def test_a_whole_job_through_the_api(client, folder, monkeypatch):
                 break
     kinds = [e["type"] for e in events]
     assert kinds[0] == "busy" and "cells" in kinds and "success" in kinds
+    assert events[1] == {"type": "request", "text": "Fill costs.xlsx from invoice.pdf"}  # shown first in the feed
     cells = next(e for e in events if e["type"] == "cells")
     assert {"cell": "Costs!B2", "old": "", "new": "12", "format": None} in cells["rows"]
     text = "".join(e["text"] for e in events if e["type"] == "text")
@@ -271,3 +272,10 @@ def test_an_event_json_cannot_encode_does_not_break_the_connection():
         desktop.ui.message("next")
         assert ws.receive_json()["when"] == "2026-09-29"
         assert ws.receive_json()["text"] == "next"
+
+
+def test_job_request_in_plain_words():
+    from excel_filler.desktop.server import job_request
+    assert job_request("costs.xlsx", ["a.pdf", "/x/y/b.pdf", "c.png"], " excl. VAT ") == \
+        "Fill costs.xlsx from a.pdf, b.pdf and c.png\nexcl. VAT"
+    assert job_request("costs.xlsx", ["a.pdf"], "") == "Fill costs.xlsx from a.pdf"

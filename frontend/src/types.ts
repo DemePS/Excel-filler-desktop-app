@@ -12,6 +12,7 @@ export type AgentEvent =
   | { type: 'answered'; id: string }
   | { type: 'assistant_start' | 'assistant_end' | 'thinking' }
   | { type: 'text'; text: string }
+  | { type: 'request'; text: string }
   | { type: 'tool'; name: string }
   | { type: 'tool_detail'; text: string }
   | { type: 'tool_result'; name: string; arguments: string; ok: boolean; summary: string }

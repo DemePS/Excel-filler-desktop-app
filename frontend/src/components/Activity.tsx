@@ -4,9 +4,9 @@ import { useEffect, useRef } from 'react'
 import type { Item } from '../types'
 import { Change } from './Change'
 
-export function Activity({ items, busy }: { items: Item[]; busy: boolean }) {
+export function Activity({ items, busy, activity }: { items: Item[]; busy: boolean; activity: string }) {
   const end = useRef<HTMLDivElement>(null)
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [items.length, busy])
+  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [items.length, busy, activity])
 
   const visible = items.filter((item) => item.kind !== 'claude' || item.text.trim())
   if (visible.length === 0 && !busy) {
@@ -44,7 +44,7 @@ export function Activity({ items, busy }: { items: Item[]; busy: boolean }) {
             return <Change key={i} item={item} />
         }
       })}
-      {busy && <div className="working" role="status"><span className="spinner" aria-hidden /> Working…</div>}
+      {busy && <div className="working" role="status"><span className="spinner" aria-hidden /> {activity || 'Working…'}</div>}
       <div ref={end} />
     </div>
   )

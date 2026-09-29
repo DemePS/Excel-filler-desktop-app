@@ -69,14 +69,17 @@ class Desktop:
         self.extra_documents = set()
         self.ui.emit({"type": "listing", **self.listing()})
 
-    def run(self, job) -> None:
-        """Run a job (a function calling the agent) in a worker thread."""
+    def run(self, job, request: str = "") -> None:
+        """Run a job (a function calling the agent) in a worker thread; `request` is what you asked,
+        shown first in the window's feed."""
         with self.lock:
             if self.busy:
                 raise HTTPException(409, "A job is already running.")
             self.busy = True
         self.ui.new_job()
         self.ui.emit({"type": "busy", "busy": True})
+        if request:
+            self.ui.emit({"type": "request", "text": request})
 
         def worker():
             try:
@@ -127,6 +130,13 @@ def to_json(event: dict) -> str:
     """An event as JSON; a value JSON cannot encode (a date, a path) is sent as text rather than
     breaking the connection."""
     return json.dumps(event, default=str)
+
+
+def job_request(workbook: str, documents: list[str], notes: str) -> str:
+    """Your request in plain words: "Fill costs.xlsx from invoice.pdf and scan.pdf"."""
+    names = [Path(d).name for d in documents]
+    listed = ", ".join(names[:-1]) + f" and {names[-1]}" if len(names) > 1 else "".join(names)
+    return f"Fill {workbook}" + (f" from {listed}" if listed else "") + (f"\n{notes.strip()}" if notes.strip() else "")
 
 
 def connection_problem() -> str | None:
@@ -215,7 +225,8 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
             raise HTTPException(400, problem)
         job_log.info("Fill %s from %d document(s)%s", body.workbook, len(body.documents),
                      " with instructions" if body.notes.strip() else "")
-        desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes))
+        desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes),
+                    job_request(body.workbook, body.documents, body.notes))
         return {"started": True}
 
     @app.post("/api/followup", dependencies=guarded)
@@ -223,7 +234,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         if desktop.folder is None or not body.text.strip():
             raise HTTPException(400, "Nothing to send.")
         job_log.info("Follow-up request")
-        desktop.run(lambda: session.send(body.text.strip()))
+        desktop.run(lambda: session.send(body.text.strip()), body.text.strip())
         return {"started": True}
 
     @app.post("/api/answer", dependencies=guarded)

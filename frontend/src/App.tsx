@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { api, connectEvents, pickDocuments, pickWorkbook } from './api'
 import { Activity } from './components/Activity'
 import { JobPanel } from './components/JobPanel'
@@ -9,7 +9,7 @@ import type { AgentEvent, Hello, Listing } from './types'
 type Action = { kind: 'event'; event: AgentEvent } | { kind: 'hello'; hello: Hello } | { kind: 'reset' } | { kind: 'you'; text: string }
 
 function reducer(state: State, action: Action): State {
-  if (action.kind === 'reset') return { ...state, items: [], lastChange: null }
+  if (action.kind === 'reset') return { ...state, items: [], lastChange: null, activity: '' }
   if (action.kind === 'you') return answered(state, action.text)
   if (action.kind === 'hello') {
     // A (re)connection: rebuild everything from the history the backend kept.
@@ -96,6 +96,11 @@ export default function App() {
     })
 
   const { listing, busy, question } = state
+  // Claude ended with a question (instead of asking it in a dialog): the reply box says so and takes the focus.
+  const lastClaude = [...state.items].reverse().find((item) => item.kind === 'claude' ? item.text.trim() : item.kind !== 'note')
+  const awaitingReply = !busy && !question && lastClaude?.kind === 'claude' && lastClaude.text.trim().endsWith('?')
+  const reply = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (awaitingReply) reply.current?.focus() }, [awaitingReply])
   return (
     <div className="app">
       <header>
@@ -122,12 +127,13 @@ export default function App() {
         <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments}
           onFill={(workbook, documents, notes) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes) })} />
         <section className="feed">
-          <Activity items={state.items} busy={busy} />
-          <form className="composer" onSubmit={(e) => {
+          <Activity items={state.items} busy={busy} activity={state.activity} />
+          {awaitingReply && <div className="reply-hint" role="status">Claude asked you a question: answer it below.</div>}
+          <form className={`composer${awaitingReply ? ' awaiting' : ''}`} onSubmit={(e) => {
             e.preventDefault()
-            if (followUp.trim()) run(async () => { await api.followUp(followUp); dispatch({ kind: 'you', text: followUp }); setFollowUp('') })
+            if (followUp.trim()) run(async () => { await api.followUp(followUp); setFollowUp('') })
           }}>
-            <input placeholder={listing.folder ? 'Ask for a correction, e.g. “use the invoice date, not the due date”' : ''}
+            <input ref={reply} placeholder={awaitingReply ? 'Your answer…' : listing.folder ? 'Ask for a correction, e.g. “use the invoice date, not the due date”' : ''}
               value={followUp} onChange={(e) => setFollowUp(e.target.value)} disabled={!listing.folder || busy} aria-label="Follow-up request" />
             {busy
               ? <button type="button" className="danger" onClick={() => run(api.stop)}>Stop</button>

@@ -1,6 +1,6 @@
 // Turns the agent's events into what the window shows: an activity feed and the open question.
 
-import type { AgentEvent, Item, Listing, Question } from './types'
+import type { AgentEvent, CellRow, Item, Listing, Question } from './types'
 
 export type State = {
   items: Item[]
@@ -10,6 +10,7 @@ export type State = {
   problem: string | null
   lastChange: Item | null // shown with the next approval question
   lastAsked: string | null // Claude's question, shown with the next text question
+  activity: string // what Claude is doing right now, shown while a job runs
 }
 
 export const initialState: State = {
@@ -20,7 +21,11 @@ export const initialState: State = {
   problem: null,
   lastChange: null,
   lastAsked: null,
+  activity: '',
 }
+
+// Text from an event, whatever the backend sent (never undefined or an object, which would break the page).
+const text = (value: unknown) => (typeof value === 'string' ? value : value == null ? '' : String(value))
 
 // Progress lines meant for the terminal, not for the window.
 const TECHNICAL_STATUS = /^\[(context|memory|excel|pdf|image|cwd|skill)\]/
@@ -40,10 +45,56 @@ export function answered(state: State, text: string): State {
   return text.trim() ? { ...state, items: [...state.items, { kind: 'you', text: text.trim() }] } : state
 }
 
-// Text from an event, whatever the backend sent (never undefined or an object, which would break the page).
-const text = (value: unknown) => (typeof value === 'string' ? value : value == null ? '' : String(value))
+// Cells of a change, for a step: "A32 = 45.50, B32 = 12" (the first few).
+function cellsSummary(rows: CellRow[], more: number): string {
+  const shown = rows.slice(0, 4).map((r) => `${r.cell.replace(/^.*!/, '')} = ${text(r.new) || 'empty'}`)
+  const rest = rows.length - shown.length + more
+  return shown.join(', ') + (rest > 0 ? ` and ${rest} more` : '')
+}
+
+// A step's plain-words description while it runs: "Reading invoice.pdf, page 2".
+function doing(label: string, detail: string): string {
+  return detail ? `${label}: ${detail}` : label
+}
 
 export function apply(state: State, event: AgentEvent): State {
+  const next = applyEvent(state, event)
+  const activity = activityOf(next, event)
+  return activity === null || activity === next.activity ? next : { ...next, activity }
+}
+
+// What the "working" line says after an event (null: unchanged).
+function activityOf(state: State, event: AgentEvent): string | null {
+  const last = state.items[state.items.length - 1]
+  switch (event.type) {
+    case 'busy':
+      return event.busy ? 'Starting: Claude receives the workbook and the documents…' : ''
+    case 'thinking':
+      return 'Claude is thinking…'
+    case 'assistant_start':
+    case 'text':
+      return 'Claude is writing…'
+    case 'tool':
+    case 'tool_detail':
+      return last?.kind === 'step' ? doing(last.label, last.detail) + '…' : null
+    case 'cells':
+      return `Waiting for your approval: ${cellsSummary(event.rows ?? [], event.more ?? 0)}`
+    case 'confirm':
+      return state.activity.startsWith('Waiting for your approval') ? null : 'Waiting for your approval…'
+    case 'ask':
+      return 'Waiting for your answer…'
+    case 'answered':
+    case 'tool_result':
+      return 'Claude is looking at the result…'
+    case 'assistant_end':
+      // The tool Claude asked for runs now: keep saying what it does.
+      return last?.kind === 'step' ? null : 'Claude is working…'
+    default:
+      return null
+  }
+}
+
+function applyEvent(state: State, event: AgentEvent): State {
   const items = state.items
   const last = items[items.length - 1]
   switch (event.type) {
@@ -52,6 +103,8 @@ export function apply(state: State, event: AgentEvent): State {
     case 'text':
       if (last?.kind === 'claude') return { ...state, items: [...items.slice(0, -1), { ...last, text: last.text + text(event.text) }] }
       return { ...state, items: [...items, { kind: 'claude', text: text(event.text) }] }
+    case 'request':
+      return answered(state, text(event.text))
     case 'tool':
       return { ...state, items: [...items, { kind: 'step', label: TOOL_LABELS[event.name] ?? event.name, detail: '' }] }
     case 'tool_detail': {
@@ -83,8 +136,17 @@ export function apply(state: State, event: AgentEvent): State {
     case 'panel':
       if (event.tone === 'question') return { ...state, lastAsked: event.title }
       return withChange(state, { kind: 'change', event })
+    case 'cells': {
+      // The step that prepared these changes says which cells: "costs.xlsx: A32 = 45.50, B32 = 12".
+      const i = items.map((item) => item.kind).lastIndexOf('step')
+      const step = i >= 0 ? (items[i] as Extract<Item, { kind: 'step' }>) : null
+      const cells = cellsSummary(event.rows ?? [], event.more ?? 0)
+      const withCells = step && cells
+        ? { ...state, items: [...items.slice(0, i), { ...step, label: 'Filling cells', detail: `${step.detail ? step.detail + ': ' : ''}${cells}` }, ...items.slice(i + 1)] }
+        : state
+      return withChange(withCells, { kind: 'change', event })
+    }
     case 'diff':
-    case 'cells':
       return withChange(state, { kind: 'change', event })
     case 'confirm':
       return { ...state, question: { kind: 'confirm', id: event.id, question: event.question, choices: event.choices, context: state.lastChange } }
