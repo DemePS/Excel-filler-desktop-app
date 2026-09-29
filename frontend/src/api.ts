@@ -1,4 +1,4 @@
-import type { Listing } from './types'
+import type { Listing, Sheet } from './types'
 
 // Talking to the local backend. Every request carries the per-launch token from the page URL.
 
@@ -20,7 +20,8 @@ export const api = {
   openWorkbook: (path: string) => call('/api/workbook', { path }),
   addDocuments: (paths: string[]) => call('/api/documents', { paths }),
   addDocumentFolder: (path: string) => call<Listing & { added: string[] }>('/api/document-folder', { path }),
-  startJob: (workbook: string, documents: string[], notes: string) => call('/api/job', { workbook, documents, notes }),
+  startJob: (workbook: string, documents: string[], notes: string, sheets: string[]) => call('/api/job', { workbook, documents, notes, sheets }),
+  sheets: (workbook: string) => call<{ sheets: Sheet[] }>(`/api/sheets?workbook=${encodeURIComponent(workbook)}`),
   followUp: (text: string) => call('/api/followup', { text }),
   answer: (id: string, value: string | null) => call('/api/answer', { id, value }),
   stop: () => call('/api/stop', {}),

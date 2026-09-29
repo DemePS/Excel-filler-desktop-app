@@ -41,3 +41,6 @@ export type Item =
 export type Question =
   | { kind: 'confirm'; id: string; question: string; choices: string[]; context: Item | null }
   | { kind: 'ask'; id: string; prompt: string; multiline: boolean; context: string | null }
+
+// A sheet of the workbook, with its size (for choosing the sheets to fill).
+export type Sheet = { name: string; rows: number; cols: number }

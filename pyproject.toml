@@ -8,7 +8,7 @@ dependencies = [
     # Exact versions: the ones tested together (uv.lock pins their own dependencies too). To
     # upgrade, change a version here, run `uv lock`, and run the tests (see README).
     # The agent engine: loop, tools, safety rules, memory -- a commit of the coding agent.
-    "coding-agent @ git+https://github.com/DemePS/CodeAgent.git@13862ce8098ed385a975a4ca3eb41a2ecbf94c9c",
+    "coding-agent @ git+https://github.com/DemePS/CodeAgent.git@2658059d861a62953ba9773eef9bc41d126a42e7",
     "fastapi==0.141.1",   # the desktop window's local backend
     "uvicorn==0.54.0",
     "websockets==16.1.1", # uvicorn's WebSocket support (the window's live events)

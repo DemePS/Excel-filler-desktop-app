@@ -1,12 +1,13 @@
 // The job: which workbook, which documents, and any instructions.
 
 import { useEffect, useRef, useState } from 'react'
-import type { Listing } from '../types'
+import { api } from '../api'
+import type { Listing, Sheet } from '../types'
 
 type Props = {
   listing: Listing
   busy: boolean
-  onFill: (workbook: string, documents: string[], notes: string) => void
+  onFill: (workbook: string, documents: string[], notes: string, sheets: string[]) => void
   onAddDocuments: () => void
   onAddDocumentFolder: () => void
   selection: { documents: string[] } | null // documents to tick instead of the current ones
@@ -31,6 +32,17 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
   const [filter, setFilter] = useState('')
+  // The workbook's sheets and the ones to fill (none ticked: Claude finds them).
+  const [sheets, setSheets] = useState<Sheet[]>([])
+  const [chosenSheets, setChosenSheets] = useState<string[]>([])
+  useEffect(() => {
+    setSheets([])
+    setChosenSheets([])
+    if (!workbook) return
+    let current = true
+    api.sheets(workbook).then((r) => { if (current) setSheets(r.sheets) }).catch(() => {})
+    return () => { current = false }
+  }, [workbook, listing.folder])
   const known = useRef<{ folder: string | null; documents: string[] }>({ folder: null, documents: [] })
 
   // Preselect the workbook that was opened, and tick the documents: all PDFs of a newly opened
@@ -76,6 +88,24 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
         <p className="muted">No .xlsx or .xlsm file in this folder.</p>
       )}
 
+      {sheets.length > 1 && (
+        <fieldset className="sheets-box">
+          <legend>Sheets to fill <span className="muted">(optional)</span></legend>
+          <div className="sheets">
+            {sheets.map((s) => (
+              <label key={s.name} className="check" title={`${s.rows} rows × ${s.cols} columns`}>
+                <input type="checkbox" checked={chosenSheets.includes(s.name)}
+                  onChange={() => setChosenSheets((c) => (c.includes(s.name) ? c.filter((n) => n !== s.name) : [...c, s.name]))} />
+                <span>{s.name} <small className="muted">{s.rows} × {s.cols}</small></span>
+              </label>
+            ))}
+          </div>
+          <p className="hint muted">{chosenSheets.length
+            ? 'Only these sheets can be changed; the others are read only if a value depends on them.'
+            : 'None ticked: Claude finds the sheet(s) to fill.'}</p>
+        </fieldset>
+      )}
+
       <fieldset className="documents-box">
         <legend>Documents to use ({documents.length} of {listing.documents.length})</legend>
         {listing.documents.length === 0 && <p className="muted">No PDF or image in this folder yet.</p>}
@@ -112,7 +142,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
         (each change after your approval).
       </p>
       <button className="primary wide" disabled={busy || !workbook || documents.length === 0}
-        onClick={() => onFill(workbook, documents, notes)}>
+        onClick={() => onFill(workbook, documents, notes, sheets.filter((s) => chosenSheets.includes(s.name)).map((s) => s.name))}>
         Fill workbook
       </button>
     </aside>

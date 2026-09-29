@@ -19,6 +19,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("documents", nargs="*", help="PDFs or images to take the values from (default: all in the folder).")
     parser.add_argument("-d", "--dir", default=".", help="Folder holding the workbook and the documents (default: current).")
     parser.add_argument("-n", "--notes", default="", help="Extra instructions, e.g. 'amounts excl. VAT, one row per line item'.")
+    parser.add_argument("-s", "--sheet", action="append", default=[], dest="sheets",
+                        help="A sheet to fill (repeat for several); only those can be changed. Default: Claude finds them.")
     parser.add_argument("-r", "--resume", action="store_true", help="Continue the last conversation in this folder.")
     return parser.parse_args()
 
@@ -37,7 +39,7 @@ def main() -> None:
     if not (folder / workbook).is_file() and not Path(workbook).name.lower().endswith((".xlsx", ".xlsm")):
         raise SystemExit(f"Not a workbook: {workbook}")
     try:
-        ok = agent.fill(workbook, args.documents or documents, args.notes)
+        ok = agent.fill(workbook, args.documents or documents, args.notes, args.sheets)
         # Follow-up requests ("the dates are wrong in row 4") in the same conversation.
         while True:
             try:
