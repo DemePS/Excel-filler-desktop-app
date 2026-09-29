@@ -13,8 +13,8 @@ of every value. It never invents a value: missing or ambiguous ones are asked or
 
 ## How it is built
 
-The agent engine is the [`coding_agent`](https://github.com/DemePS/CodeAgent)
-package (agent loop, tools, safety rules, memory, context management), installed as a dependency.
+The agent engine is the [`codeagent-apim`](https://github.com/DemePS/CodeAgent/tree/api-management)
+package (the `coding_agent` package: agent loop, tools, safety rules, memory, context management), installed as a dependency.
 This project only adds:
 
 | | |
@@ -67,8 +67,9 @@ A copy of the previous version of every workbook it saves is kept in `~/.coding-
 ## Versions
 
 Every dependency is pinned to the exact version it was tested with: Python packages in
-`pyproject.toml` (and all their own dependencies in `uv.lock`), the agent engine to a commit of
-DemePS/CodeAgent, and the UI's packages in `frontend/package.json` (and `package-lock.json`). Install
+`pyproject.toml` (and all their own dependencies in `uv.lock`), the agent engine as
+`codeagent-apim==0.1.0` (taken from a commit of DemePS/CodeAgent until it is on PyPI: see
+`[tool.uv.sources]` in `pyproject.toml`), and the UI's packages in `frontend/package.json` (and `package-lock.json`). Install
 exactly those with:
 
 ```bash
@@ -76,8 +77,8 @@ uv sync --locked          # fails instead of changing a version if uv.lock is ou
 cd frontend && npm ci     # only to change the UI
 ```
 
-To upgrade something (for example the engine: the commit after `@` in `pyproject.toml`), change its
-version, run `uv lock` (or `npm install` in `frontend/`), run the tests, and commit the lock file.
+To upgrade something (for example the engine: its version, and the `rev` in `[tool.uv.sources]`
+while it comes from GitHub), change its version, run `uv lock` (or `npm install` in `frontend/`), run the tests, and commit the lock file.
 
 ## Tests
 
