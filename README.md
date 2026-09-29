@@ -25,10 +25,13 @@ This project only adds:
 
 ```bash
 uv sync
-cd frontend && npm install && npm run build && cd ..
 uv run excel-filler-desktop            # native window (WebView2 on Windows)
 uv run excel-filler-desktop --browser  # or in your browser
 ```
+
+The window's UI comes already built (`excel_filler/desktop/static/`), so running the app needs
+no Node.js. Only if you change the UI code in `frontend/`: `cd frontend && npm install && npm run
+build`, and commit the updated `excel_filler/desktop/static/` with your change.
 
 ## Try it (terminal)
 

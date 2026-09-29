@@ -8,6 +8,10 @@ npm install
 npm run build        # then: uv run excel-filler-desktop
 ```
 
+The build output is committed, so people who only run the app need no Node.js. After changing
+anything here, run `npm run build` and commit `excel_filler/desktop/static/` together with the
+source change.
+
 Development with hot reload: start the backend with `uv run excel-filler-desktop --browser`, note
 its port, then `BACKEND=http://127.0.0.1:<port> npm run dev` and open the Vite URL with the same
 `?token=...` the backend printed.
