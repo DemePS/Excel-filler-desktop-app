@@ -93,6 +93,10 @@ button.link { border: none; background: none; text-decoration: underline; margin
 .md th, .md td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
 .md th { background: var(--bg); }
 .md-link { text-decoration: underline dotted; }
+.copy-hint { margin: 4px 0 8px; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 0.9em; line-height: 1.4; }
+.saved { display: flex; align-items: center; gap: 12px; justify-content: space-between; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; }
+.saved small { display: block; color: var(--muted); font-size: 0.82em; overflow-wrap: anywhere; }
+.saved button { flex-shrink: 0; }
 .step-failed { margin: 2px 0 0 14px; color: var(--warn); font-size: 0.9em; }
 .crash { max-width: 640px; margin: 80px auto; padding: 24px; line-height: 1.5; }
 .crash pre { white-space: pre-wrap; background: var(--danger-soft); color: var(--danger); padding: 10px; border-radius: 8px; }

@@ -90,6 +90,8 @@ class JobLog:
             log.info("Question: %s", event["question"])
         elif kind == "panel" and event.get("tone") == "question":
             log.info("Claude asks: %s", one_line(event["title"]))
+        elif kind == "saved":
+            log.info("Workbook saved: %s", event["path"])
         elif kind == "success":
             log.info("Done: %s", event["text"])
         elif kind == "failure":

@@ -150,7 +150,7 @@ export default function App() {
         <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder} selection={selection}
           onFill={(workbook, documents, notes) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes) })} />
         <section className="feed">
-          <Activity items={state.items} busy={busy} activity={state.activity} />
+          <Activity items={state.items} busy={busy} activity={state.activity} onOpen={(name) => run(() => api.openInExcel(name))} />
           {awaitingReply && <div className="reply-hint" role="status">Claude asked you a question: answer it below.</div>}
           <form className={`composer${awaitingReply ? ' awaiting' : ''}`} onSubmit={(e) => {
             e.preventDefault()

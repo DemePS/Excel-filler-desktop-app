@@ -89,6 +89,10 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
       <textarea id="notes" rows={4} placeholder="e.g. amounts excluding VAT, one row per line item, dates as dd/mm/yyyy"
         value={notes} onChange={(e) => setNotes(e.target.value)} />
 
+      <p className="copy-hint" role="note">
+        <b>Keep a copy of {workbook || 'the workbook'}</b> before filling it: the agent writes into this file
+        (each change after your approval).
+      </p>
       <button className="primary wide" disabled={busy || !workbook || documents.length === 0}
         onClick={() => onFill(workbook, documents, notes)}>
         Fill workbook

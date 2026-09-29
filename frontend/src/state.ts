@@ -105,6 +105,8 @@ function applyEvent(state: State, event: AgentEvent): State {
     case 'text':
       if (last?.kind === 'claude') return { ...state, items: [...items.slice(0, -1), { ...last, text: last.text + text(event.text) }] }
       return { ...state, items: [...items, { kind: 'claude', text: text(event.text) }] }
+    case 'saved':
+      return { ...state, items: [...items, { kind: 'saved', name: event.name, path: event.path, backups: event.backups }] }
     case 'request':
       return answered(state, text(event.text))
     case 'tool':
