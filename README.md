@@ -13,7 +13,7 @@ of every value. It never invents a value: missing or ambiguous ones are asked or
 
 ## How it is built
 
-The agent engine is the [`coding_agent`](https://github.com/DemePS/weather/tree/claude/coding-agent-tools-8dvdd2)
+The agent engine is the [`coding_agent`](https://github.com/DemePS/CodeAgent)
 package (agent loop, tools, safety rules, memory, context management), installed as a dependency.
 This project only adds:
 
@@ -64,7 +64,7 @@ A copy of the previous version of every workbook it saves is kept in `~/.coding-
 
 Every dependency is pinned to the exact version it was tested with: Python packages in
 `pyproject.toml` (and all their own dependencies in `uv.lock`), the agent engine to a commit of
-DemePS/weather, and the UI's packages in `frontend/package.json` (and `package-lock.json`). Install
+DemePS/CodeAgent, and the UI's packages in `frontend/package.json` (and `package-lock.json`). Install
 exactly those with:
 
 ```bash
