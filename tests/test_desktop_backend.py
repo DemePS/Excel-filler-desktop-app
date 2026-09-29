@@ -462,3 +462,26 @@ def test_auto_mode_applies_changes_without_asking(client, folder, monkeypatch):
     assert client.post("/api/auto", json={"on": False}).json() == {"auto": False}
     from coding_agent import state
     assert state.auto_mode is False
+
+
+def test_a_documents_folder_is_chosen_by_picking_one_of_its_documents(client, folder, tmp_path):
+    # The Windows folder dialog shows no files: the window picks a document, and its folder is used.
+    from excel_filler.desktop.app import WindowApi
+    scans = tmp_path / "scans"
+    scans.mkdir()
+    make_pdf(scans / "a.pdf", ["A"])
+    make_pdf(scans / "b.pdf", ["B"])
+    shown = {}
+
+    class FakeWindow:
+        def create_file_dialog(self, kind, **options):
+            shown.update(options)
+            return (str(scans / "b.pdf"),)
+    api = WindowApi()
+    api._window = FakeWindow()
+    assert api.pick_document_folder(str(folder)) == str(scans)
+    assert "Documents" in shown["file_types"][0] and shown["allow_multiple"] is False
+    client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    r = client.post("/api/document-folder/change", json={"path": str(scans / "a.pdf")})  # a file: its folder
+    assert r.status_code == 200 and r.json()["documents_folder"] == str(scans.resolve())
+    assert [d.split("/")[-1] for d in r.json()["documents"]] == ["a.pdf", "b.pdf"]

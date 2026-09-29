@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import type { Item } from '../types'
 import { Change } from './Change'
-import { Markdown } from './Markdown'
+import { ClaudeMessage } from './ClaudeMessage'
 
 type Props = { items: Item[]; busy: boolean; activity: string; onOpen: (name: string) => void }
 
@@ -35,7 +35,7 @@ export function Activity({ items, busy, activity, onOpen }: Props) {
       {visible.map((item, i) => {
         switch (item.kind) {
           case 'claude':
-            return <div key={i} className="claude"><Markdown text={item.text} /></div>
+            return <ClaudeMessage key={i} text={item.text} />
           case 'you':
             return <div key={i} className="you">{item.text}</div>
           case 'step':
