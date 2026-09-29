@@ -1,29 +1,38 @@
 // The job: which workbook, which documents, and any instructions.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Listing } from '../types'
 
 type Props = {
   listing: Listing
   busy: boolean
   onFill: (workbook: string, documents: string[], notes: string) => void
+  onAddDocuments: () => void
 }
 
-export function JobPanel({ listing, busy, onFill }: Props) {
+export function JobPanel({ listing, busy, onFill, onAddDocuments }: Props) {
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
+  const known = useRef<{ folder: string | null; documents: string[] }>({ folder: null, documents: [] })
 
-  // A new folder: preselect its only workbook and all its PDFs.
+  // Preselect the workbook that was opened, and tick the documents: all PDFs of a newly opened
+  // folder, then every document added afterwards.
   useEffect(() => {
-    setWorkbook((current) => (listing.workbooks.includes(current) ? current : listing.workbooks.length === 1 ? listing.workbooks[0] : ''))
+    setWorkbook((current) =>
+      listing.workbook && listing.workbooks.includes(listing.workbook) ? listing.workbook
+        : listing.workbooks.includes(current) ? current
+        : listing.workbooks.length === 1 ? listing.workbooks[0] : '')
+    const sameFolder = known.current.folder === listing.folder
+    const added = listing.documents.filter((d) => !known.current.documents.includes(d))
     setDocuments((current) => {
-      const kept = current.filter((d) => listing.documents.includes(d))
-      return kept.length ? kept : listing.documents.filter((d) => d.toLowerCase().endsWith('.pdf'))
+      if (!sameFolder) return listing.documents.filter((d) => d.toLowerCase().endsWith('.pdf'))
+      return [...current.filter((d) => listing.documents.includes(d)), ...added.filter((d) => !current.includes(d))]
     })
+    known.current = { folder: listing.folder, documents: listing.documents }
   }, [listing])
 
-  if (!listing.folder) return <aside className="job"><p className="muted">Choose a folder to start.</p></aside>
+  if (!listing.folder) return <aside className="job"><p className="muted">Open the workbook to fill to start.</p></aside>
 
   const toggle = (name: string) =>
     setDocuments((current) => (current.includes(name) ? current.filter((d) => d !== name) : [...current, name]))
@@ -42,7 +51,7 @@ export function JobPanel({ listing, busy, onFill }: Props) {
 
       <fieldset>
         <legend>Documents to use ({documents.length})</legend>
-        {listing.documents.length === 0 && <p className="muted">No PDF or image in this folder.</p>}
+        {listing.documents.length === 0 && <p className="muted">No PDF or image in this folder yet.</p>}
         <div className="documents">
           {listing.documents.map((d) => (
             <label key={d} className="check">
@@ -51,6 +60,7 @@ export function JobPanel({ listing, busy, onFill }: Props) {
           ))}
         </div>
       </fieldset>
+      <button onClick={onAddDocuments} disabled={busy}>Add documents…</button>
 
       <label htmlFor="notes">Instructions <span className="muted">(optional)</span></label>
       <textarea id="notes" rows={4} placeholder="e.g. amounts excluding VAT, one row per line item, dates as dd/mm/yyyy"

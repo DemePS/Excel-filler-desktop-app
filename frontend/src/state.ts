@@ -16,7 +16,7 @@ export const initialState: State = {
   items: [],
   question: null,
   busy: false,
-  listing: { folder: null, workbooks: [], documents: [] },
+  listing: { folder: null, workbooks: [], documents: [], workbook: null },
   problem: null,
   lastChange: null,
   lastAsked: null,
@@ -86,7 +86,7 @@ export function apply(state: State, event: AgentEvent): State {
     case 'busy':
       return { ...state, busy: event.busy, lastChange: event.busy ? null : state.lastChange }
     case 'listing':
-      return { ...state, listing: { folder: event.folder, workbooks: event.workbooks, documents: event.documents } }
+      return { ...state, listing: { folder: event.folder, workbooks: event.workbooks, documents: event.documents, workbook: event.workbook } }
     default:
       return state
   }

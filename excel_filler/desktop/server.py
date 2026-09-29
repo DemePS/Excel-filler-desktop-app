@@ -34,18 +34,34 @@ class Desktop:
     def __init__(self) -> None:
         self.ui = WebUI()
         self.folder: Path | None = None
+        self.workbook: str | None = None  # the workbook the person opened, preselected in the window
+        self.extra_documents: set[str] = set()  # documents added from subfolders, relative paths
         self.busy = False
         self.lock = threading.Lock()
 
     def listing(self) -> dict:
         if self.folder is None:
-            return {"folder": None, "workbooks": [], "documents": []}
+            return {"folder": None, "workbooks": [], "documents": [], "workbook": None}
         files = sorted((p for p in self.folder.iterdir() if p.is_file()), key=lambda p: p.name.lower())
+        documents = [p.name for p in files if p.suffix.lower() in DOCUMENT_TYPES]
+        documents += sorted(d for d in self.extra_documents if d not in documents and (self.folder / d).is_file())
         return {
             "folder": str(self.folder),
             "workbooks": [p.name for p in files if p.suffix.lower() in (".xlsx", ".xlsm") and not p.name.startswith("~$")],
-            "documents": [p.name for p in files if p.suffix.lower() in DOCUMENT_TYPES],
+            "documents": documents,
+            "workbook": self.workbook,
         }
+
+    def open(self, folder: Path, workbook: str | None = None) -> None:
+        if self.busy:
+            raise HTTPException(409, "Wait for the current job to finish.")
+        try:
+            self.folder = agent.open_folder(folder, self.ui)
+        except (NotADirectoryError, OSError) as e:
+            raise HTTPException(400, str(e))
+        self.workbook = workbook
+        self.extra_documents = set()
+        self.ui.emit({"type": "listing", **self.listing()})
 
     def run(self, job) -> None:
         """Run a job (a function calling the agent) in a worker thread."""
@@ -72,6 +88,10 @@ class Desktop:
 
 class FolderIn(BaseModel):
     path: str
+
+
+class PathsIn(BaseModel):
+    paths: list[str]
 
 
 class JobIn(BaseModel):
@@ -117,14 +137,42 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
 
     @app.post("/api/folder", dependencies=guarded)
     def open_folder(body: FolderIn):
-        if desktop.busy:
-            raise HTTPException(409, "Wait for the current job to finish.")
-        try:
-            desktop.folder = agent.open_folder(body.path, desktop.ui)
-        except (NotADirectoryError, OSError) as e:
-            raise HTTPException(400, str(e))
-        desktop.ui.emit({"type": "listing", **desktop.listing()})
+        desktop.open(Path(body.path))
         return desktop.listing()
+
+    @app.post("/api/workbook", dependencies=guarded)
+    def open_workbook(body: FolderIn):
+        """Open the workbook's folder, with the workbook preselected (the agent works in that folder)."""
+        path = Path(body.path).expanduser()
+        if path.suffix.lower() not in (".xlsx", ".xlsm"):
+            raise HTTPException(400, f"{path.name} is not an Excel workbook (.xlsx or .xlsm). Older .xls files "
+                                     "must first be saved as .xlsx in Excel.")
+        if not path.is_file():
+            raise HTTPException(400, f"File not found: {path}")
+        desktop.open(path.resolve().parent, workbook=path.name)
+        return desktop.listing()
+
+    @app.post("/api/documents", dependencies=guarded)
+    def add_documents(body: PathsIn):
+        """Add documents chosen in a file dialog; they must be in the workbook's folder or below it."""
+        if desktop.folder is None:
+            raise HTTPException(400, "Open a workbook first.")
+        added, outside = [], []
+        for raw in body.paths:
+            path = Path(raw).expanduser().resolve()
+            if path.suffix.lower() not in DOCUMENT_TYPES or not path.is_file():
+                outside.append(f"{path.name} (not a supported document)")
+            elif desktop.folder not in path.parents:
+                outside.append(f"{path.name} (outside {desktop.folder.name})")
+            else:
+                relative = path.relative_to(desktop.folder).as_posix()
+                desktop.extra_documents.add(relative)
+                added.append(relative)
+        desktop.ui.emit({"type": "listing", **desktop.listing()})
+        if outside:
+            raise HTTPException(400, "Not added: " + ", ".join(outside) + ". Documents must be in the workbook's "
+                                     "folder (or one of its subfolders); copy them there first.")
+        return {**desktop.listing(), "added": added}
 
     @app.post("/api/job", dependencies=guarded)
     def start_job(body: JobIn):

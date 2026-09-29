@@ -17,7 +17,7 @@ export type AgentEvent =
   | { type: 'busy'; busy: boolean }
   | ({ type: 'listing' } & Listing)
 
-export type Listing = { folder: string | null; workbooks: string[]; documents: string[] }
+export type Listing = { folder: string | null; workbooks: string[]; documents: string[]; workbook: string | null }
 
 export type Hello = Listing & {
   type: 'hello'

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useState } from 'react'
-import { api, connectEvents, pickFolder } from './api'
+import { api, connectEvents, pickDocuments, pickWorkbook } from './api'
 import { Activity } from './components/Activity'
 import { JobPanel } from './components/JobPanel'
 import { QuestionDialog } from './components/QuestionDialog'
@@ -13,9 +13,9 @@ function reducer(state: State, action: Action): State {
   if (action.kind === 'you') return answered(state, action.text)
   if (action.kind === 'hello') {
     // A (re)connection: rebuild everything from the history the backend kept.
-    const { history, busy, connection_problem, folder, workbooks, documents } = action.hello
+    const { history, busy, connection_problem, folder, workbooks, documents, workbook } = action.hello
     const rebuilt = history.reduce(apply, { ...initialState })
-    return { ...rebuilt, busy, problem: connection_problem, listing: { folder, workbooks, documents } }
+    return { ...rebuilt, busy, problem: connection_problem, listing: { folder, workbooks, documents, workbook } }
   }
   return apply(state, action.event)
 }
@@ -63,12 +63,22 @@ export default function App() {
     }
   }, [])
 
-  const chooseFolder = () =>
+  const openWorkbook = () =>
     run(async () => {
-      const path = await pickFolder()
+      const path = await pickWorkbook()
       if (path) {
         dispatch({ kind: 'reset' })
-        const listing = (await api.openFolder(path)) as Listing
+        const listing = (await api.openWorkbook(path)) as Listing
+        dispatch({ kind: 'event', event: { type: 'listing', ...listing } })
+      }
+    })
+
+  const addDocuments = () =>
+    run(async () => {
+      if (!state.listing.folder) return
+      const paths = await pickDocuments(state.listing.folder)
+      if (paths.length) {
+        const listing = (await api.addDocuments(paths)) as Listing
         dispatch({ kind: 'event', event: { type: 'listing', ...listing } })
       }
     })
@@ -78,8 +88,10 @@ export default function App() {
     <div className="app">
       <header>
         <div className="brand"><span className="logo" aria-hidden /> Excel filler</div>
-        <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No folder chosen'}</div>
-        <button onClick={chooseFolder} disabled={busy}>{listing.folder ? 'Change folder' : 'Choose folder'}</button>
+        <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
+        <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy}>
+          {listing.folder ? 'Open another workbook…' : 'Open workbook…'}
+        </button>
       </header>
 
       {!connected && <div className="banner warning">Connecting to the agent…</div>}
@@ -87,7 +99,7 @@ export default function App() {
       {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>Dismiss</button></div>}
 
       <main>
-        <JobPanel listing={listing} busy={busy}
+        <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments}
           onFill={(workbook, documents, notes) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes) })} />
         <section className="feed">
           <Activity items={state.items} busy={busy} />

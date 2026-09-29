@@ -15,6 +15,8 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 
 export const api = {
   openFolder: (path: string) => call('/api/folder', { path }),
+  openWorkbook: (path: string) => call('/api/workbook', { path }),
+  addDocuments: (paths: string[]) => call('/api/documents', { paths }),
   startJob: (workbook: string, documents: string[], notes: string) => call('/api/job', { workbook, documents, notes }),
   followUp: (text: string) => call('/api/followup', { text }),
   answer: (id: string, value: string | null) => call('/api/answer', { id, value }),
@@ -29,11 +31,20 @@ export function connectEvents(onEvent: (event: unknown) => void, onClose: () => 
   return ws
 }
 
-// In the desktop window, pywebview exposes the native folder picker.
-type PyWebview = { api: { pick_folder: () => Promise<string | null> } }
+// In the desktop window, pywebview exposes the native Windows file dialogs.
+type PyWebview = { api: { pick_workbook: () => Promise<string | null>; pick_documents: (folder: string) => Promise<string[]> } }
 
-export async function pickFolder(): Promise<string | null> {
-  const pywebview = (window as unknown as { pywebview?: PyWebview }).pywebview
-  if (pywebview) return pywebview.api.pick_folder()
-  return window.prompt('Folder holding the workbook and the documents (full path):')
+const native = () => (window as unknown as { pywebview?: PyWebview }).pywebview
+
+export async function pickWorkbook(): Promise<string | null> {
+  const pywebview = native()
+  if (pywebview) return pywebview.api.pick_workbook()
+  return window.prompt('Full path of the Excel workbook to fill (.xlsx or .xlsm):')
+}
+
+export async function pickDocuments(folder: string): Promise<string[]> {
+  const pywebview = native()
+  if (pywebview) return pywebview.api.pick_documents(folder)
+  const answer = window.prompt(`Full paths of the documents, one per line or separated by ";" (they must be in ${folder}):`)
+  return answer ? answer.split(/[;\n]/).map((p) => p.trim()).filter(Boolean) : []
 }

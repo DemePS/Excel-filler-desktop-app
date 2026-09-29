@@ -159,4 +159,26 @@ def test_the_window_api_exposes_only_its_methods():
     api._window = object()
     public = [name for name in vars(api) if not name.startswith("_")]
     assert public == []
-    assert callable(api.pick_folder)
+    assert callable(api.pick_workbook) and callable(api.pick_documents)
+
+
+def test_open_workbook_opens_its_folder_with_it_selected(client, folder):
+    r = client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    assert r.status_code == 200
+    assert r.json()["folder"] == str(folder.resolve()) and r.json()["workbook"] == "costs.xlsx"
+    old = folder / "old.xls"
+    old.write_bytes(b"x")
+    assert "saved as .xlsx" in client.post("/api/workbook", json={"path": str(old)}).json()["detail"]
+    assert client.post("/api/workbook", json={"path": str(folder / "missing.xlsx")}).status_code == 400
+
+
+def test_add_documents_from_subfolders_only(client, folder, tmp_path):
+    client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    (folder / "march").mkdir()
+    make_pdf(folder / "march" / "inv-7.pdf", ["x"])
+    r = client.post("/api/documents", json={"paths": [str(folder / "march" / "inv-7.pdf")]})
+    assert r.status_code == 200 and r.json()["added"] == ["march/inv-7.pdf"]
+    assert "march/inv-7.pdf" in client.get("/api/state").json()["documents"]
+    make_pdf(tmp_path / "elsewhere.pdf", ["x"])
+    r = client.post("/api/documents", json={"paths": [str(tmp_path / "elsewhere.pdf")]})
+    assert r.status_code == 400 and "outside" in r.json()["detail"]

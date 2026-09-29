@@ -65,11 +65,23 @@ class WindowApi:
     def __init__(self) -> None:
         self._window = None
 
-    def pick_folder(self) -> str | None:
-        import webview
-        kind = webview.FileDialog.FOLDER if hasattr(webview, "FileDialog") else webview.FOLDER_DIALOG
-        result = self._window.create_file_dialog(kind)
+    def pick_workbook(self) -> str | None:
+        """A Windows "Open" dialog showing Excel files (a folder dialog would not show the files)."""
+        result = self._window.create_file_dialog(
+            open_dialog(), file_types=("Excel workbooks (*.xlsx;*.xlsm)", "All files (*.*)"))
         return result[0] if result else None
+
+    def pick_documents(self, folder: str) -> list[str]:
+        """An "Open" dialog in the workbook's folder; several PDFs or images can be selected."""
+        result = self._window.create_file_dialog(
+            open_dialog(), directory=folder, allow_multiple=True,
+            file_types=("Documents (*.pdf;*.png;*.jpg;*.jpeg;*.webp)", "All files (*.*)"))
+        return list(result or [])
+
+
+def open_dialog():
+    import webview
+    return webview.FileDialog.OPEN if hasattr(webview, "FileDialog") else webview.OPEN_DIALOG
 
 
 def run_in_browser(url: str) -> None:
