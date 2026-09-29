@@ -99,7 +99,7 @@ def test_stop_answers_pending_questions_negatively(client, folder, monkeypatch):
     assert openpyxl.load_workbook(folder / "costs.xlsx")["Costs"]["A2"].value is None
 
 
-def test_the_real_server_accepts_the_window_websocket():
+def test_the_real_server_accepts_the_window_websocket(caplog):
     """Through uvicorn itself (the test client above bypasses it): the WebSocket must work."""
     import asyncio
     import json
@@ -122,10 +122,22 @@ def test_the_real_server_accepts_the_window_websocket():
         async with websockets.connect(f"ws://127.0.0.1:{port}/ws?token={TOKEN}") as ws:
             return json.loads(await ws.recv())
 
+    async def drop():  # the window closes without a clean goodbye (code 1005, as seen on Windows)
+        ws = await websockets.connect(f"ws://127.0.0.1:{port}/ws?token={TOKEN}")
+        await ws.recv()
+        ws.transport.close()
+
     try:
         assert asyncio.run(hello())["type"] == "hello"
+        asyncio.run(drop())
+        time.sleep(0.5)
+        import gc
+        gc.collect()  # "Task exception was never retrieved" is logged when the task is collected
+        time.sleep(0.2)
     finally:
         server.should_exit = True
+    problems = [r.getMessage() for r in caplog.records if r.levelname == "ERROR"]
+    assert not problems, problems
 
 
 def test_the_launcher_imports_without_a_console(tmp_path):

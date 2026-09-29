@@ -168,6 +168,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
             loop.call_soon_threadsafe(queue.put_nowait, event)
 
         history = desktop.ui.subscribe(listener)
+        receiver = getter = None
         try:
             await ws.send_json({"type": "hello", "history": history, "busy": desktop.busy, **desktop.listing(),
                                 "connection_problem": connection_problem()})
@@ -175,14 +176,18 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
             while True:
                 getter = asyncio.create_task(queue.get())
                 done, _ = await asyncio.wait({getter, receiver}, return_when=asyncio.FIRST_COMPLETED)
-                if receiver in done:
-                    getter.cancel()
+                if receiver in done:  # the window closed or reloaded; it reconnects and gets the history
                     break
                 await ws.send_json(getter.result())
-        except WebSocketDisconnect:
-            pass
+        except (WebSocketDisconnect, RuntimeError, OSError):
+            pass  # the connection dropped while sending
         finally:
             desktop.ui.unsubscribe(listener)
+            tasks = [t for t in (receiver, getter) if t is not None]
+            for task in tasks:
+                task.cancel()
+            # Collect the tasks' outcomes (e.g. the disconnect), so asyncio has nothing left to report.
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     if (STATIC_DIR / "index.html").is_file():
         app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
