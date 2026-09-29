@@ -15,7 +15,7 @@ export function Activity({ items, busy }: { items: Item[]; busy: boolean }) {
         <h2>Fill a workbook from your documents</h2>
         <ol>
           <li>Open the workbook to fill. Its folder is where the agent works.</li>
-          <li>Tick the documents to use from that folder, or add more from its subfolders.</li>
+          <li>Tick the documents to use from that folder, or add documents from any folder (read only).</li>
           <li>Press <b>Fill workbook</b>. You approve every change before it is saved.</li>
         </ol>
       </div>

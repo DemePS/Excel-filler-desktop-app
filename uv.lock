@@ -403,7 +403,7 @@ wheels = [
 [[package]]
 name = "coding-agent"
 version = "0.1.0"
-source = { git = "https://github.com/DemePS/weather.git?rev=bac9abe#bac9abe2c420051f6c181b05cb42bf6408a54dfc" }
+source = { git = "https://github.com/DemePS/weather.git?rev=75b0a23#75b0a23271fc6bcc2fc0057144fdc18bc8bbed49" }
 dependencies = [
     { name = "anthropic" },
     { name = "azure-identity" },
@@ -526,7 +526,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "coding-agent", git = "https://github.com/DemePS/weather.git?rev=bac9abe" },
+    { name = "coding-agent", git = "https://github.com/DemePS/weather.git?rev=75b0a23" },
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "pywebview", specifier = ">=5" },
     { name = "uvicorn", specifier = ">=0.30" },

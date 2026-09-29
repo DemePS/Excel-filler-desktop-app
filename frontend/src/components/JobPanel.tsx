@@ -10,6 +10,20 @@ type Props = {
   onAddDocuments: () => void
 }
 
+// A document in the workbook's folder is shown by its relative path; one from another folder
+// (absolute path, read-only for the agent) by its name, with its folder underneath.
+function DocumentName({ path }: { path: string }) {
+  const absolute = path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path)
+  if (!absolute) return <span>{path}</span>
+  const parts = path.split(/[\\/]/)
+  return (
+    <span className="doc-outside">
+      {parts[parts.length - 1]}
+      <small>{parts.slice(-3, -1).join('/')} · read only</small>
+    </span>
+  )
+}
+
 export function JobPanel({ listing, busy, onFill, onAddDocuments }: Props) {
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
@@ -54,8 +68,8 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments }: Props) {
         {listing.documents.length === 0 && <p className="muted">No PDF or image in this folder yet.</p>}
         <div className="documents">
           {listing.documents.map((d) => (
-            <label key={d} className="check">
-              <input type="checkbox" checked={documents.includes(d)} onChange={() => toggle(d)} /> <span>{d}</span>
+            <label key={d} className="check" title={d}>
+              <input type="checkbox" checked={documents.includes(d)} onChange={() => toggle(d)} /> <DocumentName path={d} />
             </label>
           ))}
         </div>

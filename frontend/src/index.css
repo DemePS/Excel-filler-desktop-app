@@ -87,6 +87,8 @@ fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
 .documents { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; margin-top: 6px; }
 .check { display: flex; gap: 8px; align-items: center; font-weight: 400 !important; padding: 3px 0; }
 .check span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-outside { display: flex; flex-direction: column; line-height: 1.2; }
+.doc-outside small { color: var(--muted); font-size: 0.8em; }
 .job .primary { margin-top: auto; }
 
 .feed { display: flex; flex-direction: column; min-width: 0; min-height: 0; }

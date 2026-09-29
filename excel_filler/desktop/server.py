@@ -35,7 +35,9 @@ class Desktop:
         self.ui = WebUI()
         self.folder: Path | None = None
         self.workbook: str | None = None  # the workbook the person opened, preselected in the window
-        self.extra_documents: set[str] = set()  # documents added from subfolders, relative paths
+        # Documents added with the file dialog: relative paths inside the folder, absolute paths for
+        # documents elsewhere (their folder is then readable by the agent, never writable).
+        self.extra_documents: set[str] = set()
         self.busy = False
         self.lock = threading.Lock()
 
@@ -154,24 +156,28 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
 
     @app.post("/api/documents", dependencies=guarded)
     def add_documents(body: PathsIn):
-        """Add documents chosen in a file dialog; they must be in the workbook's folder or below it."""
+        """Add documents chosen in a file dialog, from any folder. A document outside the workbook's
+        folder makes its folder readable by the agent (read-only: the agent only writes the workbook)."""
         if desktop.folder is None:
             raise HTTPException(400, "Open a workbook first.")
-        added, outside = [], []
+        if desktop.busy:
+            raise HTTPException(409, "Wait for the current job to finish.")
+        added, refused = [], []
         for raw in body.paths:
             path = Path(raw).expanduser().resolve()
             if path.suffix.lower() not in DOCUMENT_TYPES or not path.is_file():
-                outside.append(f"{path.name} (not a supported document)")
-            elif desktop.folder not in path.parents:
-                outside.append(f"{path.name} (outside {desktop.folder.name})")
+                refused.append(path.name)
+                continue
+            if desktop.folder in path.parents:
+                name = path.relative_to(desktop.folder).as_posix()
             else:
-                relative = path.relative_to(desktop.folder).as_posix()
-                desktop.extra_documents.add(relative)
-                added.append(relative)
+                session.add_read_folder(path.parent)
+                name = path.as_posix()
+            desktop.extra_documents.add(name)
+            added.append(name)
         desktop.ui.emit({"type": "listing", **desktop.listing()})
-        if outside:
-            raise HTTPException(400, "Not added: " + ", ".join(outside) + ". Documents must be in the workbook's "
-                                     "folder (or one of its subfolders); copy them there first.")
+        if refused:
+            raise HTTPException(400, "Not added (not a PDF, image or text document): " + ", ".join(refused))
         return {**desktop.listing(), "added": added}
 
     @app.post("/api/job", dependencies=guarded)

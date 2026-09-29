@@ -59,6 +59,27 @@ def test_fill_job_end_to_end(folder, monkeypatch):
     assert ("text", "Filled row 2 from invoice.pdf page 1.") in ui.events
 
 
+def test_documents_in_another_folder_are_read_not_written(folder, tmp_path, monkeypatch):
+    other = tmp_path / "scans"
+    other.mkdir()
+    make_pdf(other / "inv-9.pdf", ["Brackets 8 x 12.00 EUR"])
+    pdf = (other / "inv-9.pdf").resolve().as_posix()
+    fake = FakeClaude([
+        ([("read_excel", {"path": "costs.xlsx"})], "tool_use"),
+        ([("read_pdf", {"path": pdf, "mode": "text"}), ("edit_excel", {"path": str(other / "copy.xlsx"), "changes": [{"cell": "A1", "value": 1}]})], "tool_use"),
+        ([("text", "done")], "end_turn"),
+    ])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    agent.open_folder(folder, ScriptedUI(answers=["yes"]))
+    session.add_read_folder(other)
+    agent.fill("costs.xlsx", [pdf])
+    first = fake.requests[0]["messages"][0]["content"]
+    assert any(b["text"].startswith("<read_only_folders>") for b in first)
+    results = fake.tool_results(2)
+    assert "Brackets 8 x 12.00 EUR" in results["read"]["content"]
+    assert results["edit"]["is_error"] and not (other / "copy.xlsx").exists()
+
+
 def test_tools_outside_the_excel_set_are_not_available(folder, monkeypatch):
     fake = FakeClaude([
         ([("run_python", {"code": "print(1)"}), ("delete_file", {"path": "costs.xlsx"})], "tool_use"),

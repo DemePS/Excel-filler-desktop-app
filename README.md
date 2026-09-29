@@ -3,7 +3,9 @@
 Fill an Excel workbook from PDF documents with Claude (Azure / Microsoft Foundry), reviewing
 every change before it is saved.
 
-You point it at a folder holding a workbook and the documents (invoices, statements, scans). It
+You open the workbook and pick the documents (invoices, statements, scans) -- from its folder or
+from any other folder; folders outside the workbook's are read-only for the agent, which only
+ever writes the workbook. It
 opens the workbook first to see which fields are needed, reads only the document pages that hold
 them, writes the values (you approve a cell-by-cell diff), checks them, and ends with the source
 of every value. It never invents a value: missing or ambiguous ones are asked or left empty.

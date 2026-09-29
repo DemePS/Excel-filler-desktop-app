@@ -172,13 +172,21 @@ def test_open_workbook_opens_its_folder_with_it_selected(client, folder):
     assert client.post("/api/workbook", json={"path": str(folder / "missing.xlsx")}).status_code == 400
 
 
-def test_add_documents_from_subfolders_only(client, folder, tmp_path):
+def test_add_documents_from_subfolders_and_other_folders(client, folder, tmp_path):
     client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
     (folder / "march").mkdir()
     make_pdf(folder / "march" / "inv-7.pdf", ["x"])
     r = client.post("/api/documents", json={"paths": [str(folder / "march" / "inv-7.pdf")]})
     assert r.status_code == 200 and r.json()["added"] == ["march/inv-7.pdf"]
     assert "march/inv-7.pdf" in client.get("/api/state").json()["documents"]
-    make_pdf(tmp_path / "elsewhere.pdf", ["x"])
-    r = client.post("/api/documents", json={"paths": [str(tmp_path / "elsewhere.pdf")]})
-    assert r.status_code == 400 and "outside" in r.json()["detail"]
+    other = tmp_path / "scans"
+    other.mkdir()
+    make_pdf(other / "elsewhere.pdf", ["x"])
+    r = client.post("/api/documents", json={"paths": [str(other / "elsewhere.pdf")]})
+    absolute = (other / "elsewhere.pdf").resolve().as_posix()
+    assert r.status_code == 200 and r.json()["added"] == [absolute]  # from anywhere, by absolute path
+    from coding_agent import state
+    assert other.resolve() in state.read_roots  # its folder is readable (not writable) by the agent
+    (other / "notes.docx").write_bytes(b"x")
+    r = client.post("/api/documents", json={"paths": [str(other / "notes.docx")]})
+    assert r.status_code == 400 and "notes.docx" in r.json()["detail"]

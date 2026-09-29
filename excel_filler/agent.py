@@ -14,6 +14,9 @@ TOOLS = ["list_directory", "read_file", "read_pdf", "view_image", "read_excel", 
 SYSTEM_PROMPT = """You fill Excel workbooks with information taken from documents (PDF invoices,
 statements, reports, scans, images). You work in the folder {workspace}; paths are relative to it.
 The person using you is not necessarily technical: write short, plain sentences.
+Some documents may be in other folders (listed with absolute paths, announced in a
+<read_only_folders> note): read them with their absolute paths. You can only write the workbook,
+never anything in those folders.
 
 Work from the workbook to the documents, in this order:
 1. Open the workbook with read_excel before any document. Work out exactly what is needed:
