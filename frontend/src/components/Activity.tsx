@@ -23,7 +23,7 @@ export function Activity({ items, busy, activity, onOpen }: Props) {
         <h2>Fill a workbook from your documents</h2>
         <ol>
           <li>Open the workbook to fill. Its folder is where the agent works.</li>
-          <li>Tick the documents to use from that folder, or pick their <b>Documents folder…</b> if they are elsewhere (read only).</li>
+          <li>Tick the documents to use from that folder, or <b>Add folder…</b> / <b>Add files…</b> if they are elsewhere (read only).</li>
           <li><b>Keep a copy of the workbook</b>: the agent writes into it.</li>
           <li>Press <b>Fill workbook</b>. You approve every change before it is saved.</li>
         </ol>
