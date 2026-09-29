@@ -10,6 +10,7 @@ dependencies = [
     "coding-agent @ git+https://github.com/DemePS/weather.git@962b8a7",
     "fastapi>=0.141.1",   # the desktop window's local backend
     "uvicorn>=0.30",
+    "websockets>=13",     # uvicorn's WebSocket support (the window's live events)
     "pywebview>=5",       # the native window (WebView2 on Windows, WebKit on macOS)
 ]
 

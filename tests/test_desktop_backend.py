@@ -97,3 +97,32 @@ def test_stop_answers_pending_questions_negatively(client, folder, monkeypatch):
         while not ((event := ws.receive_json())["type"] == "busy" and event["busy"] is False):
             pass
     assert openpyxl.load_workbook(folder / "costs.xlsx")["Costs"]["A2"].value is None
+
+
+def test_the_real_server_accepts_the_window_websocket():
+    """Through uvicorn itself (the test client above bypasses it): the WebSocket must work."""
+    import asyncio
+    import json
+    import socket
+    import threading
+    import time
+
+    import uvicorn
+    import websockets
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(create_app(TOKEN), host="127.0.0.1", port=port, log_level="warning"))
+    threading.Thread(target=server.run, daemon=True).start()
+    while not server.started:
+        time.sleep(0.02)
+
+    async def hello():
+        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?token={TOKEN}") as ws:
+            return json.loads(await ws.recv())
+
+    try:
+        assert asyncio.run(hello())["type"] == "hello"
+    finally:
+        server.should_exit = True

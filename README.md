@@ -18,7 +18,17 @@ This project only adds:
 |---|---|
 | `excel_filler/agent.py` | the tools Claude gets (read documents, read/write the workbook, ask you; no code execution, deletion or network), its instructions, and how a job is phrased |
 | `excel_filler/cli.py` | the `excel-filler` terminal command |
-| desktop window | *next step*: the same agent in a window (React UI, local FastAPI backend) |
+| `excel_filler/desktop/` | the desktop window: a local FastAPI backend (127.0.0.1, per-launch token) running the agent in a worker thread, `WebUI` sending the agent's UI calls to the window over a WebSocket, and `app.py` opening a native window (pywebview) |
+| `frontend/` | the window's React UI: choose a folder, pick the workbook and documents, watch the work, approve cell changes, answer Claude's questions, ask for corrections |
+
+## Run the desktop app
+
+```bash
+uv sync
+cd frontend && npm install && npm run build && cd ..
+uv run excel-filler-desktop            # native window (WebView2 on Windows)
+uv run excel-filler-desktop --browser  # or in your browser
+```
 
 ## Try it (terminal)
 
@@ -53,7 +63,7 @@ They run a whole filling job against a mocked Claude API through the real SDK an
 ## Roadmap
 
 1. ~~Agent engine as a package (`coding_agent`), imported here~~
-2. Desktop window: pick a folder, a workbook and documents; watch progress; approve cell
-   changes and answer questions in the window.
+2. ~~Desktop window: pick a folder, a workbook and documents; watch progress; approve cell
+   changes and answer questions in the window.~~
 3. Sign-in: Microsoft account (Entra ID) or an API key kept in the OS keychain.
 4. Windows installer built by CI.

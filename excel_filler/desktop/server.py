@@ -190,6 +190,10 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         @app.get("/")
         def index():
             return FileResponse(STATIC_DIR / "index.html")
+
+        @app.get("/favicon.svg")
+        def favicon():
+            return FileResponse(STATIC_DIR / "favicon.svg")
     else:
         @app.get("/")
         def not_built():
