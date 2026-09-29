@@ -7,8 +7,9 @@ requires-python = ">=3.10"
 dependencies = [
     # Exact versions: the ones tested together (uv.lock pins their own dependencies too). To
     # upgrade, change a version here, run `uv lock`, and run the tests (see README).
-    # The agent engine: loop, tools, safety rules, memory -- a commit of the coding agent.
-    "codeagent-apim @ git+https://github.com/DemePS/CodeAgent.git@226126a84a21620bbee495b4eb57ba7412542aed",
+    # The agent engine (loop, tools, safety rules, memory, gateway sign-in): the codeagent-apim
+    # package. Until it is on PyPI, uv takes it from GitHub ([tool.uv.sources] below).
+    "codeagent-apim==0.1.0",
     "fastapi==0.141.1",   # the desktop window's local backend
     "uvicorn==0.54.0",
     "websockets==16.1.1", # uvicorn's WebSocket support (the window's live events)
@@ -30,8 +31,10 @@ build = ["pyinstaller==6.22.3", "pyinstaller-hooks-contrib==2026.7"]
 requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
-[tool.hatch.metadata]
-allow-direct-references = true  # the git dependency above
+[tool.uv.sources]
+# codeagent-apim 0.1.0 is not on PyPI yet: this commit of the CodeAgent repository (its
+# api-management branch). Once published, delete this section and run `uv lock`.
+codeagent-apim = { git = "https://github.com/DemePS/CodeAgent.git", rev = "226126a84a21620bbee495b4eb57ba7412542aed" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["excel_filler"]
