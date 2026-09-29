@@ -12,7 +12,7 @@ datas += collect_data_files("coding_agent")
 hiddenimports += collect_submodules("excel_filler") + collect_submodules("coding_agent")
 
 # Versions read at run time (the app's own version is checked against the minimum version).
-for dist in ("excel-filler-desktop-app", "codeagent", "anthropic", "fastapi", "uvicorn", "pydantic",
+for dist in ("excel-filler-desktop-app", "codeagent-apim", "anthropic", "fastapi", "uvicorn", "pydantic",
              "azure-identity", "msal", "pywebview", "openpyxl", "pypdf", "httpx"):
     datas += copy_metadata(dist)
 
