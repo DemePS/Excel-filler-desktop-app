@@ -21,6 +21,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-n", "--notes", default="", help="Extra instructions, e.g. 'amounts excl. VAT, one row per line item'.")
     parser.add_argument("-s", "--sheet", action="append", default=[], dest="sheets",
                         help="A sheet to fill (repeat for several); only those can be changed. Default: Claude finds them.")
+    parser.add_argument("--auto", action="store_true",
+                        help="Auto mode: apply changes without asking (a backup is kept); questions are not asked.")
     parser.add_argument("-r", "--resume", action="store_true", help="Continue the last conversation in this folder.")
     return parser.parse_args()
 
@@ -29,7 +31,7 @@ def main() -> None:
     args = parse_args()
     ui = TerminalUI()
     try:
-        folder = agent.open_folder(args.dir, ui, resume=args.resume)
+        folder = agent.open_folder(args.dir, ui, resume=args.resume, auto=args.auto)
     except NotADirectoryError as e:
         raise SystemExit(str(e))
     workbooks = sorted(p.name for p in folder.glob("*.xls[xm]") if not p.name.startswith("~$"))

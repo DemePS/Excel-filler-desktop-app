@@ -58,6 +58,10 @@ account needs access to the Foundry resource (a role such as *Azure AI User*, gr
 Optional: `AZURE_TENANT_ID` (the resource's tenant, if not your account's) and `AZURE_CLIENT_ID`
 (your organization's app registration for the sign-in page).
 
+**Auto mode** (the switch above *Fill workbook*, or `excel-filler --auto`): changes are saved without
+asking and Claude's questions are not asked; missing or ambiguous values are left empty and listed at
+the end. A workbook with features that saving would damage still asks first.
+
 A copy of the previous version of every workbook it saves is kept in `~/.coding-agent/backups/`.
 
 ## Versions
