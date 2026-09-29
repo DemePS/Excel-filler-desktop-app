@@ -1,7 +1,29 @@
-# Excel-filler-desktop-app
+# Excel filler (API Management edition)
 
 Fill an Excel workbook from PDF documents with Claude (Azure / Microsoft Foundry), reviewing
 every change before it is saved.
+
+This branch, `api-management`, is the version the organization gives to its employees: the app
+reaches Claude only through the organization's **Azure API Management gateway**.
+
+- **Access:** employees sign in with their work account (silently, with the account signed into
+  Windows). Only members of the "Excel filler users" Entra ID group get in; the app checks it at
+  startup and explains a refusal in plain words. No key or secret is ever on a PC.
+- **Central settings:** the Claude deployment, the oldest allowed app version and a message for all
+  users are read from the gateway at startup; IT changes them without reinstalling anything.
+- **Limits and monitoring:** per-user limits, and who uses it with which app version, in the
+  gateway (never the content of documents or answers).
+- **Distribution:** a Windows zip built by `azure-pipelines.yml`, with the organization's gateway
+  settings built in, signed with Azure Trusted Signing.
+
+| For | Read |
+|---|---|
+| IT: deploying the gateway, Entra ID setup, the build | [`infra/README.md`](infra/README.md) |
+| Code signing | [`docs/code-signing.md`](docs/code-signing.md) |
+| The rollout proposal | [`docs/enterprise-deployment-proposal.md`](docs/enterprise-deployment-proposal.md) |
+
+## Using it
+
 
 You open the workbook and pick the documents (invoices, statements, scans): those next to the
 workbook, the documents of another folder instead (**Change folder…**; **Use the workbook's folder**
@@ -23,6 +45,21 @@ This project only adds:
 | `excel_filler/cli.py` | the `excel-filler` terminal command |
 | `excel_filler/desktop/` | the desktop window: a local FastAPI backend (127.0.0.1, per-launch token) running the agent in a worker thread, `WebUI` sending the agent's UI calls to the window over a WebSocket, and `app.py` opening a native window (pywebview) |
 | `frontend/` | the window's React UI: choose a folder, pick the workbook and documents, watch the work, approve cell changes, answer Claude's questions, ask for corrections |
+
+## Gateway settings
+
+The organization's values are built into the app by the pipeline (`excel_filler/organization.json`,
+from the variable group `excel-filler`); environment variables override them:
+
+| Variable | Meaning |
+|---|---|
+| `EXCEL_FILLER_GATEWAY` | the gateway, `https://<apim>.azure-api.net/excel-filler` |
+| `EXCEL_FILLER_API_SCOPE` | `api://<gateway API app id>/.default` |
+| `EXCEL_FILLER_CLIENT_ID` | the desktop app registration employees sign in with |
+| `EXCEL_FILLER_TENANT_ID` | the organization's tenant |
+
+Without them (the file in the repository is empty) the app is a **developer build**: no access
+check, and Claude is called directly on Foundry with the settings under *Try it* below.
 
 ## Run the desktop app
 
@@ -89,8 +126,9 @@ They run a whole filling job against a mocked Claude API through the real SDK an
 
 ## Roadmap
 
-1. ~~Agent engine as a package (`coding_agent`), imported here~~
+1. ~~Agent engine as a package (`codeagent-apim`), imported here~~
 2. ~~Desktop window: pick a folder, a workbook and documents; watch progress; approve cell
    changes and answer questions in the window.~~
-3. Sign-in: Microsoft account (Entra ID) or an API key kept in the OS keychain.
-4. Windows installer built by CI.
+3. ~~Sign-in with the work account; access through the API Management gateway~~
+4. ~~Windows build, self-test and signing on Azure Pipelines~~
+5. Deploy the gateway and the Entra ID setup (`infra/README.md`), then a pilot with a few users.

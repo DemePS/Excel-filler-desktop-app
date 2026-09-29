@@ -1,5 +1,5 @@
 {
-  "_comment": "The organization's gateway settings, built into the app (the release build fills them from the repository's Actions variables). Environment variables override them; empty values: no gateway (developers call Foundry directly).",
+  "_comment": "The organization's gateway settings, built into the app (azure-pipelines.yml fills them from the variable group excel-filler). Environment variables override them; empty values: no gateway (developers call Foundry directly).",
   "gateway": "",
   "api_scope": "",
   "client_id": "",
