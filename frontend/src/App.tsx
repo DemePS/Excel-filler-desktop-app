@@ -14,9 +14,9 @@ function reducer(state: State, action: Action): State {
   if (action.kind === 'you') return answered(state, action.text)
   if (action.kind === 'hello') {
     // A (re)connection: rebuild everything from the history the backend kept.
-    const { history, busy, connection_problem, folder, workbooks, documents, workbook } = action.hello
+    const { history, busy, connection_problem, folder, workbooks, documents, workbook, documents_folder } = action.hello
     const rebuilt = history.reduce(apply, { ...initialState })
-    return { ...rebuilt, busy, problem: connection_problem, listing: { folder, workbooks, documents, workbook } }
+    return { ...rebuilt, busy, problem: connection_problem, listing: { folder, workbooks, documents, workbook, documents_folder } }
   }
   return apply(state, action.event)
 }
@@ -102,9 +102,27 @@ export default function App() {
       const path = await pickDocumentFolder(state.listing.folder)
       if (path) {
         const result = await api.addDocumentFolder(path)
-        dispatch({ kind: 'event', event: { type: 'listing', folder: result.folder, workbooks: result.workbooks, documents: result.documents, workbook: result.workbook } })
+        dispatch({ kind: 'event', event: { type: 'listing', folder: result.folder, workbooks: result.workbooks, documents: result.documents, workbook: result.workbook, documents_folder: result.documents_folder } })
         setSelection({ documents: result.added })
       }
+    })
+
+  // Documents from another folder instead: only that folder's documents are listed (and ticked).
+  const changeDocumentFolder = () =>
+    run(async () => {
+      if (!state.listing.folder) return
+      const path = await pickDocumentFolder(state.listing.documents_folder ?? state.listing.folder)
+      if (path) {
+        const result = await api.changeDocumentFolder(path)
+        dispatch({ kind: 'event', event: { type: 'listing', folder: result.folder, workbooks: result.workbooks, documents: result.documents, workbook: result.workbook, documents_folder: result.documents_folder } })
+        setSelection({ documents: result.added })
+      }
+    })
+
+  const resetDocumentFolder = () =>
+    run(async () => {
+      const listing = await api.resetDocumentFolder()
+      dispatch({ kind: 'event', event: { type: 'listing', ...listing } })
     })
 
   const addDocuments = () =>
@@ -150,7 +168,8 @@ export default function App() {
       {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>Dismiss</button></div>}
 
       <main style={{ gridTemplateColumns: `${sidebarWidth}px auto minmax(0, 1fr)` }}>
-        <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder} selection={selection}
+        <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder}
+          onChangeDocumentFolder={changeDocumentFolder} onResetDocumentFolder={resetDocumentFolder} selection={selection}
           onFill={(workbook, documents, notes, sheets) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes, sheets) })} />
         <Splitter width={sidebarWidth} onResize={setSidebarWidth} />
         <section className="feed">

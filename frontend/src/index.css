@@ -105,6 +105,8 @@ button.link { border: none; background: none; text-decoration: underline; margin
 .head-actions, .add-links { display: flex; gap: 12px; }
 .job button.link { margin-left: 0; font-size: 0.9em; color: var(--muted); }
 .job button.link:hover:not(:disabled) { color: var(--accent); }
+.documents-from { font-size: 0.85em; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.documents-from b { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
 .filter { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font: inherit; }
 .fold > summary { cursor: pointer; font-weight: 600; list-style: none; }
 .fold > summary::-webkit-details-marker { display: none; }

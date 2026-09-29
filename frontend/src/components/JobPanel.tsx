@@ -10,6 +10,8 @@ type Props = {
   onFill: (workbook: string, documents: string[], notes: string, sheets: string[]) => void
   onAddDocuments: () => void
   onAddDocumentFolder: () => void
+  onChangeDocumentFolder: () => void
+  onResetDocumentFolder: () => void
   selection: { documents: string[] } | null // documents to tick instead of the current ones
 }
 
@@ -27,7 +29,7 @@ function DocumentName({ path }: { path: string }) {
   )
 }
 
-export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentFolder, selection }: Props) {
+export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentFolder, onChangeDocumentFolder, onResetDocumentFolder, selection }: Props) {
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
@@ -115,6 +117,14 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
               <button type="button" className="link" onClick={() => selectAll(true)}>All</button>
               <button type="button" className="link" onClick={() => selectAll(false)}>None</button>
             </span>
+          )}
+        </div>
+        <div className="documents-from" title={listing.documents_folder ?? listing.folder}>
+          From {listing.documents_folder ? <b>{listing.documents_folder.split(/[\\/]/).filter(Boolean).pop()}</b> : 'the workbook’s folder'}
+          <button type="button" className="link" onClick={onChangeDocumentFolder} disabled={busy}
+            title="Take the documents from another folder instead">Change folder…</button>
+          {listing.documents_folder && (
+            <button type="button" className="link" onClick={onResetDocumentFolder} disabled={busy}>Use the workbook’s folder</button>
           )}
         </div>
         {listing.documents.length > 6 && (

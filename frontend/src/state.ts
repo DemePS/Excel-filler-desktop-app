@@ -17,7 +17,7 @@ export const initialState: State = {
   items: [],
   question: null,
   busy: false,
-  listing: { folder: null, workbooks: [], documents: [], workbook: null },
+  listing: { folder: null, workbooks: [], documents: [], workbook: null, documents_folder: null },
   problem: null,
   lastChange: null,
   lastAsked: null,
@@ -183,7 +183,7 @@ function applyEvent(state: State, event: AgentEvent): State {
     case 'busy':
       return { ...state, busy: event.busy, lastChange: event.busy ? null : state.lastChange }
     case 'listing':
-      return { ...state, listing: { folder: event.folder, workbooks: event.workbooks, documents: event.documents, workbook: event.workbook } }
+      return { ...state, listing: { folder: event.folder, workbooks: event.workbooks, documents: event.documents, workbook: event.workbook, documents_folder: event.documents_folder ?? null } }
     default:
       return state
   }
