@@ -292,6 +292,8 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         if desktop.busy:
             raise HTTPException(409, "Wait for the current job to finish.")
         folder = Path(raw).expanduser().resolve()
+        if folder.is_file():  # a document of the folder was picked (the file dialog shows the files)
+            folder = folder.parent
         if not folder.is_dir():
             raise HTTPException(400, f"Not a folder: {folder}")
         paths = folder_documents(folder)

@@ -124,7 +124,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
         <div className="documents-from" title={listing.documents_folder ?? listing.folder}>
           From {listing.documents_folder ? <b>{listing.documents_folder.split(/[\\/]/).filter(Boolean).pop()}</b> : 'the workbook’s folder'}
           <button type="button" className="link" onClick={onChangeDocumentFolder} disabled={busy}
-            title="Take the documents from another folder instead">Change folder…</button>
+            title="Take the documents from another folder instead: pick any document in it">Change folder…</button>
           {listing.documents_folder && (
             <button type="button" className="link" onClick={onResetDocumentFolder} disabled={busy}>Use the workbook’s folder</button>
           )}
@@ -145,7 +145,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
         <div className="add-links">
           <button type="button" className="link" onClick={onAddDocuments} disabled={busy}>Add files…</button>
           <button type="button" className="link" onClick={onAddDocumentFolder} disabled={busy}
-            title="Use the PDFs and images of another folder">Add folder…</button>
+            title="Add the PDFs and images of another folder: pick any document in it">Add folder…</button>
         </div>
       </section>
 

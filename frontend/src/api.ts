@@ -82,5 +82,5 @@ export async function pickDocuments(folder: string): Promise<string[]> {
 export async function pickDocumentFolder(folder: string): Promise<string | null> {
   const pywebview = native()
   if (pywebview) return pywebview.api.pick_document_folder(folder)
-  return window.prompt('Full path of the folder holding the documents (PDFs, images):')
+  return window.prompt('Full path of the folder holding the documents, or of any document in it:')
 }
