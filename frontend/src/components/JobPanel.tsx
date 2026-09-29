@@ -76,49 +76,52 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
   const toggle = (name: string) =>
     setDocuments((current) => (current.includes(name) ? current.filter((d) => d !== name) : [...current, name]))
 
+  const chosen = sheets.filter((s) => chosenSheets.includes(s.name)).map((s) => s.name)
+
   return (
     <aside className="job">
-      <label htmlFor="workbook">Workbook to fill</label>
-      {listing.workbooks.length ? (
-        <select id="workbook" value={workbook} onChange={(e) => setWorkbook(e.target.value)}>
-          <option value="" disabled>Choose a workbook…</option>
-          {listing.workbooks.map((w) => <option key={w}>{w}</option>)}
-        </select>
-      ) : (
-        <p className="muted">No .xlsx or .xlsm file in this folder.</p>
-      )}
-
-      {sheets.length > 1 && (
-        <fieldset className="sheets-box">
-          <legend>Sheets to fill <span className="muted">(optional)</span></legend>
-          <div className="sheets">
-            {sheets.map((s) => (
-              <label key={s.name} className="check" title={`${s.rows} rows × ${s.cols} columns`}>
-                <input type="checkbox" checked={chosenSheets.includes(s.name)}
-                  onChange={() => setChosenSheets((c) => (c.includes(s.name) ? c.filter((n) => n !== s.name) : [...c, s.name]))} />
-                <span>{s.name} <small className="muted">{s.rows} × {s.cols}</small></span>
-              </label>
-            ))}
-          </div>
-          <p className="hint muted">{chosenSheets.length
-            ? 'Only these sheets can be changed; the others are read only if a value depends on them.'
-            : 'None ticked: Claude finds the sheet(s) to fill.'}</p>
-        </fieldset>
-      )}
-
-      <fieldset className="documents-box">
-        <legend>Documents to use ({documents.length} of {listing.documents.length})</legend>
-        {listing.documents.length === 0 && <p className="muted">No PDF or image in this folder yet.</p>}
-        {listing.documents.length > 1 && (
-          <div className="documents-tools">
-            {listing.documents.length > 6 && (
-              <input type="search" placeholder="Filter documents…" value={filter} aria-label="Filter documents"
-                onChange={(e) => setFilter(e.target.value)} />
-            )}
-            <button type="button" className="link" onClick={() => selectAll(true)}>All{filter ? ' shown' : ''}</button>
-            <button type="button" className="link" onClick={() => selectAll(false)}>None{filter ? ' shown' : ''}</button>
-          </div>
+      <section className="job-section">
+        <label htmlFor="workbook" className="section-title">Workbook</label>
+        {listing.workbooks.length ? (
+          <select id="workbook" value={workbook} onChange={(e) => setWorkbook(e.target.value)}>
+            <option value="" disabled>Choose a workbook…</option>
+            {listing.workbooks.map((w) => <option key={w}>{w}</option>)}
+          </select>
+        ) : (
+          <p className="muted">No .xlsx or .xlsm file in this folder.</p>
         )}
+        {sheets.length > 1 && (
+          <details className="fold">
+            <summary>Sheets: <span className={chosen.length ? '' : 'muted'}>{chosen.length ? chosen.join(', ') : 'Claude decides'}</span></summary>
+            <div className="sheets">
+              {sheets.map((s) => (
+                <label key={s.name} className="check" title={`${s.rows} rows × ${s.cols} columns`}>
+                  <input type="checkbox" checked={chosenSheets.includes(s.name)}
+                    onChange={() => setChosenSheets((c) => (c.includes(s.name) ? c.filter((n) => n !== s.name) : [...c, s.name]))} />
+                  <span>{s.name} <small className="muted">{s.rows} × {s.cols}</small></span>
+                </label>
+              ))}
+            </div>
+            <p className="hint muted">Ticked sheets are the only ones that can be changed.</p>
+          </details>
+        )}
+      </section>
+
+      <section className="job-section documents-box">
+        <div className="section-head">
+          <span className="section-title">Documents <span className="count">{documents.length}/{listing.documents.length}</span></span>
+          {listing.documents.length > 1 && (
+            <span className="head-actions">
+              <button type="button" className="link" onClick={() => selectAll(true)}>All</button>
+              <button type="button" className="link" onClick={() => selectAll(false)}>None</button>
+            </span>
+          )}
+        </div>
+        {listing.documents.length > 6 && (
+          <input type="search" className="filter" placeholder="Filter…" value={filter} aria-label="Filter documents"
+            onChange={(e) => setFilter(e.target.value)} />
+        )}
+        {listing.documents.length === 0 && <p className="muted">No PDF or image in this folder yet.</p>}
         <div className="documents">
           {shown.length === 0 && filter && <p className="muted">No document matches “{filter}”.</p>}
           {shown.map((d) => (
@@ -127,24 +130,26 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
             </label>
           ))}
         </div>
-      </fieldset>
-      <div className="add-documents">
-        <button onClick={onAddDocumentFolder} disabled={busy} title="Use the PDFs and images of another folder">Documents folder…</button>
-        <button onClick={onAddDocuments} disabled={busy}>Add files…</button>
+        <div className="add-links">
+          <button type="button" className="link" onClick={onAddDocuments} disabled={busy}>Add files…</button>
+          <button type="button" className="link" onClick={onAddDocumentFolder} disabled={busy}
+            title="Use the PDFs and images of another folder">Add folder…</button>
+        </div>
+      </section>
+
+      <details className="fold job-section">
+        <summary>Instructions <span className="muted">{notes.trim() ? '' : '(optional)'}</span></summary>
+        <textarea id="notes" rows={3} aria-label="Instructions" placeholder="e.g. amounts excluding VAT, one row per line item"
+          value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </details>
+
+      <div className="fill">
+        <button className="primary wide" disabled={busy || !workbook || documents.length === 0}
+          onClick={() => onFill(workbook, documents, notes, chosen)}>
+          Fill workbook
+        </button>
+        <p className="copy-hint" role="note">⚠ Keep a copy of {workbook || 'the workbook'} first: the agent writes into it.</p>
       </div>
-
-      <label htmlFor="notes">Instructions <span className="muted">(optional)</span></label>
-      <textarea id="notes" rows={4} placeholder="e.g. amounts excluding VAT, one row per line item, dates as dd/mm/yyyy"
-        value={notes} onChange={(e) => setNotes(e.target.value)} />
-
-      <p className="copy-hint" role="note">
-        <b>Keep a copy of {workbook || 'the workbook'}</b> before filling it: the agent writes into this file
-        (each change after your approval).
-      </p>
-      <button className="primary wide" disabled={busy || !workbook || documents.length === 0}
-        onClick={() => onFill(workbook, documents, notes, sheets.filter((s) => chosenSheets.includes(s.name)).map((s) => s.name))}>
-        Fill workbook
-      </button>
     </aside>
   )
 }
