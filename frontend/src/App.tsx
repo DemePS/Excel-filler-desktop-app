@@ -27,6 +27,7 @@ export default function App() {
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [followUp, setFollowUp] = useState('')
+  const [stopping, setStopping] = useState(false)  // Stop pressed; the job ends in a moment
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth()
   // Signed in and allowed to use Excel filler? Checked once at startup, before anything else.
   const [access, setAccess] = useState<Access | null>(null)
@@ -133,6 +134,7 @@ export default function App() {
     })
 
   const { listing, busy, question } = state
+  useEffect(() => { if (!busy) setStopping(false) }, [busy])
   // Claude ended with a question (instead of asking it in a dialog): the reply box says so and takes the focus.
   const lastClaude = [...state.items].reverse().find((item) => item.kind === 'claude' ? item.text.trim() : item.kind !== 'note')
   const awaitingReply = !busy && !question && lastClaude?.kind === 'claude' && lastClaude.text.trim().endsWith('?')
@@ -174,7 +176,7 @@ export default function App() {
           onFill={(workbook, documents, notes) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes) })} />
         <Splitter width={sidebarWidth} onResize={setSidebarWidth} />
         <section className="feed">
-          <Activity items={state.items} busy={busy} activity={state.activity} onOpen={(name) => run(() => api.openInExcel(name))} />
+          <Activity items={state.items} busy={busy} activity={stopping ? 'Stopping…' : state.activity} onOpen={(name) => run(() => api.openInExcel(name))} />
           {awaitingReply && <div className="reply-hint" role="status">Claude asked you a question: answer it below.</div>}
           <form className={`composer${awaitingReply ? ' awaiting' : ''}`} onSubmit={(e) => {
             e.preventDefault()
@@ -183,7 +185,7 @@ export default function App() {
             <input ref={reply} placeholder={awaitingReply ? 'Your answer…' : listing.folder ? 'Ask for a correction, e.g. “use the invoice date, not the due date”' : ''}
               value={followUp} onChange={(e) => setFollowUp(e.target.value)} disabled={!listing.folder || busy} aria-label="Follow-up request" />
             {busy
-              ? <button type="button" className="danger" onClick={() => run(api.stop)}>Stop</button>
+              ? <button type="button" className="danger" disabled={stopping} onClick={() => { setStopping(true); run(api.stop) }}>{stopping ? 'Stopping…' : 'Stop'}</button>
               : <button type="submit" disabled={!followUp.trim()}>Send</button>}
           </form>
         </section>

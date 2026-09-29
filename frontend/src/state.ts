@@ -131,10 +131,12 @@ function applyEvent(state: State, event: AgentEvent): State {
     case 'status':
       if (TECHNICAL_STATUS.test(text(event.text))) return state
       return { ...state, items: [...items, { kind: 'note', tone: 'status', text: text(event.text) }] }
+    case 'message':
+      if (text(event.text) === '[interrupted]') return { ...state, items: [...items, { kind: 'note', tone: 'warning', text: 'Stopped.' }] }
+      return { ...state, items: [...items, { kind: 'note', tone: 'message', text: text(event.text) }] }
     case 'success':
     case 'failure':
     case 'warning':
-    case 'message':
     case 'error':
       return { ...state, items: [...items, { kind: 'note', tone: event.type, text: text(event.text) }] }
     case 'panel':
