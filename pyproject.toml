@@ -3,15 +3,16 @@ name = "excel-filler-desktop-app"
 version = "0.1.0"
 description = "Fill Excel workbooks from PDF documents with Claude (Azure / Microsoft Foundry), reviewing every change"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = [
-    # The agent engine: loop, tools, safety rules, memory. Pinned to a commit of the coding agent;
-    # update the ref to take a newer version (see README).
-    "coding-agent @ git+https://github.com/DemePS/weather.git@8bd5de7",
-    "fastapi>=0.141.1",   # the desktop window's local backend
-    "uvicorn>=0.30",
-    "websockets>=13",     # uvicorn's WebSocket support (the window's live events)
-    "pywebview>=5",       # the native window (WebView2 on Windows, WebKit on macOS)
+    # Exact versions: the ones tested together (uv.lock pins their own dependencies too). To
+    # upgrade, change a version here, run `uv lock`, and run the tests (see README).
+    # The agent engine: loop, tools, safety rules, memory -- a commit of the coding agent.
+    "coding-agent @ git+https://github.com/DemePS/weather.git@60eea8e8f3b0d0de93165e22d7c691fa77028853",
+    "fastapi==0.141.1",   # the desktop window's local backend
+    "uvicorn==0.54.0",
+    "websockets==16.1.1", # uvicorn's WebSocket support (the window's live events)
+    "pywebview==6.2.1",   # the native window (WebView2 on Windows, WebKit on macOS)
 ]
 
 [project.scripts]
@@ -21,10 +22,10 @@ excel-filler = "excel_filler.cli:main"
 excel-filler-desktop = "excel_filler.desktop.app:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest==9.1.1"]
 
 [build-system]
-requires = ["hatchling>=1.26"]
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]

@@ -27,13 +27,13 @@ This project only adds:
 ## Run the desktop app
 
 ```bash
-uv sync
+uv sync --locked
 uv run excel-filler-desktop            # native window (WebView2 on Windows)
 uv run excel-filler-desktop --browser  # or in your browser
 ```
 
 The window's UI comes already built (`excel_filler/desktop/static/`), so running the app needs
-no Node.js. Only if you change the UI code in `frontend/`: `cd frontend && npm install && npm run
+no Node.js. Only if you change the UI code in `frontend/`: `cd frontend && npm ci && npm run
 build`, and commit the updated `excel_filler/desktop/static/` with your change.
 
 ## Try it (terminal)
@@ -53,10 +53,20 @@ Configuration (environment variables or a `.env` file in the folder you run from
 
 A copy of the previous version of every workbook it saves is kept in `~/.coding-agent/backups/`.
 
-## Updating the agent engine
+## Versions
 
-`pyproject.toml` pins `coding-agent` to a commit of DemePS/weather. To take a newer version,
-change the ref after `@` and run `uv lock && uv sync`.
+Every dependency is pinned to the exact version it was tested with: Python packages in
+`pyproject.toml` (and all their own dependencies in `uv.lock`), the agent engine to a commit of
+DemePS/weather, and the UI's packages in `frontend/package.json` (and `package-lock.json`). Install
+exactly those with:
+
+```bash
+uv sync --locked          # fails instead of changing a version if uv.lock is out of date
+cd frontend && npm ci     # only to change the UI
+```
+
+To upgrade something (for example the engine: the commit after `@` in `pyproject.toml`), change its
+version, run `uv lock` (or `npm install` in `frontend/`), run the tests, and commit the lock file.
 
 ## Tests
 
