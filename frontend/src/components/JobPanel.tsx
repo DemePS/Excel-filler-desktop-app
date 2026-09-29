@@ -9,6 +9,8 @@ type Props = {
   busy: boolean
   onFill: (workbook: string, documents: string[], notes: string, sheets: string[]) => void
   onAddDocuments: () => void
+  auto: boolean
+  onAuto: (on: boolean) => void
   onAddDocumentFolder: () => void
   onChangeDocumentFolder: () => void
   onResetDocumentFolder: () => void
@@ -29,7 +31,7 @@ function DocumentName({ path }: { path: string }) {
   )
 }
 
-export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentFolder, onChangeDocumentFolder, onResetDocumentFolder, selection }: Props) {
+export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentFolder, onChangeDocumentFolder, onResetDocumentFolder, selection, auto, onAuto }: Props) {
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
@@ -154,6 +156,10 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
       </details>
 
       <div className="fill">
+        <label className={`auto-switch${auto ? ' on' : ''}`} title="Changes are applied without asking you; questions are not asked (missing values are left empty and listed)">
+          <input type="checkbox" checked={auto} disabled={busy} onChange={(e) => onAuto(e.target.checked)} />
+          <span>Auto mode <small>{auto ? 'changes are saved without asking' : 'you approve each change'}</small></span>
+        </label>
         <button className="primary wide" disabled={busy || !workbook || documents.length === 0}
           onClick={() => onFill(workbook, documents, notes, chosen)}>
           Fill workbook

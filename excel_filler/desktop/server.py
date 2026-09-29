@@ -49,6 +49,7 @@ class Desktop:
         # The folder the documents come from, when changed from the workbook's (None: the workbook's).
         self.documents_folder: Path | None = None
         self.busy = False
+        self.auto = False  # auto mode: changes applied without asking (a backup is kept)
         self.lock = threading.Lock()
 
     def listing(self) -> dict:
@@ -76,7 +77,7 @@ class Desktop:
         if self.busy:
             raise HTTPException(409, "Wait for the current job to finish.")
         try:
-            self.folder = agent.open_folder(folder, self.ui)
+            self.folder = agent.open_folder(folder, self.ui, auto=self.auto)
         except (NotADirectoryError, OSError) as e:
             raise HTTPException(400, str(e))
         self.workbook = workbook
@@ -140,6 +141,10 @@ class JobIn(BaseModel):
 
 class TextIn(BaseModel):
     text: str
+
+
+class AutoIn(BaseModel):
+    on: bool
 
 
 class AnswerIn(BaseModel):
@@ -210,7 +215,20 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     @app.get("/api/state", dependencies=guarded)
     def get_state():
         return {**desktop.listing(), "busy": desktop.busy, "connection_problem": connection_problem(),
-                "pending": desktop.ui.pending_questions()}
+                "pending": desktop.ui.pending_questions(), "auto": desktop.auto}
+
+    @app.post("/api/auto", dependencies=guarded)
+    def set_auto(body: AutoIn):
+        """Auto mode on or off: changes applied without asking (a backup of the workbook is still kept;
+        a workbook whose features saving would damage still asks), and Claude's questions not asked."""
+        if desktop.busy:
+            raise HTTPException(409, "Wait for the current job to finish.")
+        desktop.auto = body.on
+        if desktop.folder is not None:
+            agent.set_auto(body.on)
+        job_log.info("Auto mode %s", "on: changes are applied without asking" if body.on else "off")
+        desktop.ui.emit({"type": "auto", "on": body.on})
+        return {"auto": desktop.auto}
 
     @app.get("/api/check", dependencies=guarded)
     def check():
@@ -398,7 +416,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         history = desktop.ui.subscribe(listener)
         receiver = getter = None
         try:
-            await ws.send_text(to_json({"type": "hello", "history": history, "busy": desktop.busy,
+            await ws.send_text(to_json({"type": "hello", "history": history, "busy": desktop.busy, "auto": desktop.auto,
                                         **desktop.listing(), "connection_problem": connection_problem()}))
             receiver = asyncio.create_task(ws.receive_text())  # only to notice the window closing
             while True:

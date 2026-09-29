@@ -16,7 +16,7 @@ function reducer(state: State, action: Action): State {
     // A (re)connection: rebuild everything from the history the backend kept.
     const { history, busy, connection_problem, folder, workbooks, documents, workbook, documents_folder } = action.hello
     const rebuilt = history.reduce(apply, { ...initialState })
-    return { ...rebuilt, busy, problem: connection_problem, listing: { folder, workbooks, documents, workbook, documents_folder } }
+    return { ...rebuilt, busy, auto: action.hello.auto ?? false, problem: connection_problem, listing: { folder, workbooks, documents, workbook, documents_folder } }
   }
   return apply(state, action.event)
 }
@@ -148,6 +148,7 @@ export default function App() {
         <div className="brand"><span className="logo" aria-hidden /> Excel filler</div>
         <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
         {/* Nothing while the startup check runs: only its result (connected, or an error). */}
+        {state.auto && <span className="auto-tag" title="Changes are applied without asking; a backup of the workbook is kept">Auto mode</span>}
         {claude.state !== 'checking' && (
           <span className={`claude-status ${claude.state}`} title={claude.message}>
             {claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
@@ -168,7 +169,7 @@ export default function App() {
       {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>Dismiss</button></div>}
 
       <main style={{ gridTemplateColumns: `${sidebarWidth}px auto minmax(0, 1fr)` }}>
-        <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder}
+        <JobPanel listing={listing} busy={busy} auto={state.auto} onAuto={(on) => run(() => api.setAuto(on))} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder}
           onChangeDocumentFolder={changeDocumentFolder} onResetDocumentFolder={resetDocumentFolder} selection={selection}
           onFill={(workbook, documents, notes, sheets) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes, sheets) })} />
         <Splitter width={sidebarWidth} onResize={setSidebarWidth} />

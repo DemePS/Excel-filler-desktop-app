@@ -13,6 +13,7 @@ export type AgentEvent =
   | { type: 'assistant_start' | 'assistant_end' | 'thinking' }
   | { type: 'text'; text: string }
   | { type: 'request'; text: string }
+  | { type: 'auto'; on: boolean }
   | { type: 'saved'; name: string; path: string; backups: string }
   | { type: 'tool'; name: string }
   | { type: 'tool_detail'; text: string }
@@ -33,6 +34,7 @@ export type Hello = Listing & {
   history: AgentEvent[]
   busy: boolean
   connection_problem: string | null
+  auto?: boolean
 }
 
 // What the activity feed shows.

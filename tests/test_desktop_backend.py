@@ -436,3 +436,29 @@ def test_the_job_log_names_the_sheet_and_range(client, folder, monkeypatch, capl
             events.append(ws.receive_json())
     lines = [r.getMessage() for r in caplog.records if r.name == "excel-filler.job"]
     assert "Claude reads the workbook costs.xlsx (sheet Costs, A1:B5)" in lines, lines
+
+
+def test_auto_mode_applies_changes_without_asking(client, folder, monkeypatch):
+    fake = FakeClaude([
+        ([("edit_excel", {"path": "costs.xlsx", "changes": [{"sheet": "Costs", "cell": "A2", "value": "Sensors"}]})], "tool_use"),
+        ([("text", "Filled A2.")], "end_turn"),
+    ])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    client.post("/api/folder", json={"path": str(folder)})
+    assert client.get("/api/state").json()["auto"] is False
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        assert client.post("/api/auto", json={"on": True}).json() == {"auto": True}
+        received = [ws.receive_json() for _ in range(2)]  # the engine's own note, then the switch's state
+        assert {"type": "auto", "on": True} in received
+        client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]})
+        events = []
+        while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
+            events.append(ws.receive_json())
+    assert not [e for e in events if e["type"] in ("confirm", "ask")]  # nothing to approve or answer
+    assert openpyxl.load_workbook(folder / "costs.xlsx")["Costs"]["A2"].value == "Sensors"
+    text = " ".join(b.get("text", "") for b in fake.requests[0]["messages"][0]["content"])
+    assert "Auto mode: nobody approves the changes" in text
+    assert client.post("/api/auto", json={"on": False}).json() == {"auto": False}
+    from coding_agent import state
+    assert state.auto_mode is False

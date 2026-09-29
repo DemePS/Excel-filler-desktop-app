@@ -7,6 +7,7 @@ export type State = {
   question: Question | null
   busy: boolean
   listing: Listing
+  auto: boolean // auto mode: changes applied without asking
   problem: string | null
   lastChange: Item | null // shown with the next approval question
   lastAsked: string | null // Claude's question, shown with the next text question
@@ -18,6 +19,7 @@ export const initialState: State = {
   question: null,
   busy: false,
   listing: { folder: null, workbooks: [], documents: [], workbook: null, documents_folder: null },
+  auto: false,
   problem: null,
   lastChange: null,
   lastAsked: null,
@@ -123,6 +125,8 @@ function applyEvent(state: State, event: AgentEvent): State {
     case 'text':
       if (last?.kind === 'claude') return { ...state, items: [...items.slice(0, -1), { ...last, text: last.text + text(event.text) }] }
       return { ...state, items: [...items, { kind: 'claude', text: text(event.text) }] }
+    case 'auto':
+      return { ...state, auto: event.on }
     case 'saved':
       return { ...state, items: [...items, { kind: 'saved', name: event.name, path: event.path, backups: event.backups }] }
     case 'request':
@@ -151,9 +155,13 @@ function applyEvent(state: State, event: AgentEvent): State {
     case 'message':
       if (text(event.text) === '[interrupted]') return { ...state, items: [...items, { kind: 'note', tone: 'warning', text: 'Stopped.' }] }
       return { ...state, items: [...items, { kind: 'note', tone: 'message', text: text(event.text) }] }
+    case 'warning':
+      // The engine's auto mode announcement is written for its terminal (Ctrl+C, /auto): the switch
+      // and the "Auto mode" tag already say it here.
+      if (/^Autonomous mode (ON|OFF)/.test(text(event.text))) return state
+      return { ...state, items: [...items, { kind: 'note', tone: 'warning', text: text(event.text) }] }
     case 'success':
     case 'failure':
-    case 'warning':
     case 'error':
       return { ...state, items: [...items, { kind: 'note', tone: event.type, text: text(event.text) }] }
     case 'panel':
