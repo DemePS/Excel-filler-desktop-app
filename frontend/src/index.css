@@ -166,7 +166,11 @@ fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
 .empty-state h2 { color: var(--text); font-weight: 600; }
 .empty-state li { margin: 6px 0; }
 
-.claude { line-height: 1.5; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.claude { position: relative; line-height: 1.5; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.claude .copy { position: absolute; top: 6px; right: 8px; font-size: 0.78em; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); opacity: 0; transition: opacity 0.15s; }
+.claude:hover .copy, .claude .copy:focus-visible { opacity: 1; }
+.claude .copy:hover { color: var(--accent); border-color: var(--accent); }
+@media (hover: none) { .claude .copy { opacity: 1; } }
 .you { white-space: pre-wrap; line-height: 1.5; align-self: flex-end; max-width: 80%; background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; }
 .step { color: var(--muted); font-size: 0.93em; }
 .step-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 4px; vertical-align: middle; }
