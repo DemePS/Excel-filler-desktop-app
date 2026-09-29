@@ -312,6 +312,44 @@ def test_a_documents_folder_inside_the_workbook_folder_is_relative(client, folde
     assert r.json()["added"] == ["invoices/x.pdf"] and "invoices/x.pdf" in r.json()["documents"]
 
 
+def test_changing_the_documents_folder_lists_only_its_documents(client, folder, tmp_path):
+    from coding_agent import state
+    elsewhere = tmp_path / "scans"
+    elsewhere.mkdir()
+    make_pdf(elsewhere / "a.pdf", ["A"])
+    (folder / "invoices").mkdir()
+    make_pdf(folder / "invoices" / "x.pdf", ["X"])
+    client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    client.post("/api/documents", json={"paths": [str(folder / "invoice.pdf")]})
+
+    r = client.post("/api/document-folder/change", json={"path": str(elsewhere)})
+    assert r.status_code == 200, r.text
+    a = (elsewhere / "a.pdf").as_posix()
+    assert r.json()["documents"] == [a] and r.json()["added"] == [a]  # not invoice.pdf next to the workbook
+    assert r.json()["documents_folder"] == str(elsewhere.resolve())
+    assert elsewhere.resolve() in state.read_roots  # readable, never writable
+    make_pdf(elsewhere / "b.pdf", ["B"])  # added to that folder meanwhile: listed too
+    assert client.get("/api/state").json()["documents"] == [a, (elsewhere / "b.pdf").as_posix()]
+    assert client.get("/api/state").json()["workbooks"] == ["costs.xlsx"]  # the workbook stays
+
+    r = client.post("/api/document-folder/change", json={"path": str(folder / "invoices")})
+    assert r.json()["documents"] == ["invoices/x.pdf"]  # inside the workbook's folder: relative
+
+    r = client.post("/api/document-folder/reset", json={})
+    assert r.json()["documents"] == ["invoice.pdf"] and r.json()["documents_folder"] is None
+    assert client.post("/api/document-folder/change", json={"path": str(tmp_path / "nope")}).status_code == 400
+
+
+def test_opening_another_workbook_goes_back_to_its_documents(client, folder, tmp_path):
+    elsewhere = tmp_path / "scans"
+    elsewhere.mkdir()
+    make_pdf(elsewhere / "a.pdf", ["A"])
+    client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    client.post("/api/document-folder/change", json={"path": str(elsewhere)})
+    r = client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    assert r.json()["documents"] == ["invoice.pdf"] and r.json()["documents_folder"] is None
+
+
 def test_after_a_job_the_saved_workbook_can_be_opened(client, folder, monkeypatch):
     from excel_filler.desktop import server
     fake = FakeClaude([
