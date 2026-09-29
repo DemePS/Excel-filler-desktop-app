@@ -49,7 +49,27 @@ export function answered(state: State, text: string): State {
 function cellsSummary(rows: CellRow[], more: number): string {
   const shown = rows.slice(0, 4).map((r) => `${r.cell.replace(/^.*!/, '')} = ${text(r.new) || 'empty'}`)
   const rest = rows.length - shown.length + more
-  return shown.join(', ') + (rest > 0 ? ` and ${rest} more` : '')
+  // The sheet once, when all the cells are in the same one: "sheet Costs: A32 = 45.50, B32 = 12".
+  const sheets = [...new Set(rows.map((r) => (r.cell.includes('!') ? r.cell.slice(0, r.cell.lastIndexOf('!')) : '')))]
+  const sheet = sheets.length === 1 && sheets[0] ? `sheet ${sheets[0]}: ` : ''
+  return sheet + shown.join(', ') + (rest > 0 ? ` and ${rest} more` : '')
+}
+
+// An argument of a tool call as shown in its summary: key='value' (or key="value" when the value
+// contains a quote).
+function argument(summary: string, key: string): string | undefined {
+  const match = new RegExp(`\\b${key}=(?:'([^']*)'|"([^"]*)")`).exec(summary)
+  return match ? (match[1] ?? match[2]) : undefined
+}
+
+// What a tool works on: the file, and for a workbook its sheet and range, for a PDF its pages.
+export function toolTarget(summary: string): string {
+  const file = argument(summary, 'path')
+  if (!file) return ''
+  const sheet = argument(summary, 'sheet')
+  const range = argument(summary, 'range')
+  const pages = argument(summary, 'pages')
+  return [file, sheet && `sheet ${sheet}`, range, pages && `page ${pages}`].filter(Boolean).join(', ')
 }
 
 // A step's plain-words description while it runs: "Reading invoice.pdf, page 2".
@@ -110,11 +130,10 @@ function applyEvent(state: State, event: AgentEvent): State {
     case 'tool':
       return { ...state, items: [...items, { kind: 'step', label: TOOL_LABELS[event.name] ?? event.name, detail: '' }] }
     case 'tool_detail': {
-      // Only the file a tool works on is worth showing ("path='costs.xlsx', ..." -> costs.xlsx).
-      const file = /path='([^']+)'/.exec(text(event.text))?.[1]
-      const pages = /pages='([^']+)'/.exec(text(event.text))?.[1]
-      if (last?.kind === 'step' && file) {
-        return { ...state, items: [...items.slice(0, -1), { ...last, detail: pages ? `${file}, page ${pages}` : file }] }
+      // What the tool works on, in plain words: "costs.xlsx, sheet Costs, A1:F40", "invoice.pdf, page 2".
+      const detail = toolTarget(text(event.text))
+      if (last?.kind === 'step' && detail) {
+        return { ...state, items: [...items.slice(0, -1), { ...last, detail }] }
       }
       return state
     }
@@ -146,7 +165,7 @@ function applyEvent(state: State, event: AgentEvent): State {
       const step = i >= 0 ? (items[i] as Extract<Item, { kind: 'step' }>) : null
       const cells = cellsSummary(event.rows ?? [], event.more ?? 0)
       const withCells = step && cells
-        ? { ...state, items: [...items.slice(0, i), { ...step, label: 'Filling cells', detail: `${step.detail ? step.detail + ': ' : ''}${cells}` }, ...items.slice(i + 1)] }
+        ? { ...state, items: [...items.slice(0, i), { ...step, label: 'Filling cells', detail: `${step.detail ? step.detail + ', ' : ''}${cells}` }, ...items.slice(i + 1)] }
         : state
       return withChange(withCells, { kind: 'change', event })
     }
