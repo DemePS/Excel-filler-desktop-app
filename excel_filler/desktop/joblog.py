@@ -1,6 +1,6 @@
 """A readable log of what the agent does during a job, built from the same events the window gets.
 
-One line per step (job start/end, each tool and its file, proposed changes, approvals, questions,
+One line per step (job start/end, each tool call with its arguments and outcome, proposed changes, approvals, questions,
 Claude's messages, errors), in the terminal and in the log file. Document contents are not logged,
 only file names, cell counts and Claude's own sentences.
 """
@@ -72,6 +72,13 @@ class JobLog:
             pages = re.search(r"pages='([^']+)'", event["text"])
             detail = (file.group(1) if file else "") + (f" (page {pages.group(1)})" if pages else "")
             self._flush_tool(detail)
+        elif kind == "tool_result":
+            self._flush_tool()
+            call = f"Tool {event['name']}({event.get('arguments') or ''})"
+            if event.get("ok"):
+                log.info("%s -> OK (%s)", call, event.get("summary") or "")
+            else:
+                log.warning("%s -> ERROR: %s", call, event.get("summary") or "")
         elif kind == "text":
             self.text.append(event["text"])
         elif kind == "assistant_end":
@@ -89,7 +96,9 @@ class JobLog:
             log.warning("Not done: %s", event["text"])
         elif kind == "warning":
             log.warning("%s", event["text"])
+        elif kind == "error":
+            log.error("%s", event["text"])
         elif kind == "message":
-            (log.error if event["text"].startswith("[") and "error" in event["text"].lower() else log.info)("%s", event["text"])
+            log.info("%s", event["text"])
         elif kind == "status" and not event["text"].startswith(("[context]", "[memory]")):
             log.info("%s", event["text"])

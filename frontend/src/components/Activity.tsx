@@ -34,9 +34,11 @@ export function Activity({ items, busy }: { items: Item[]; busy: boolean }) {
               <div key={i} className="step">
                 <span className="step-dot" aria-hidden /> {item.label}
                 {item.detail && <span className="step-detail"> {item.detail}</span>}
+                {item.failed && <div className="step-failed">Did not work: {item.failed}</div>}
               </div>
             )
           case 'note':
+            if (item.tone === 'error') return <div key={i} className="error-card" role="alert"><b>Something went wrong.</b> {item.text}</div>
             return <div key={i} className={`note note-${item.tone}`}>{item.tone === 'success' ? '✔ ' : item.tone === 'failure' ? '✘ ' : ''}{item.text}</div>
           case 'change':
             return <Change key={i} item={item} />

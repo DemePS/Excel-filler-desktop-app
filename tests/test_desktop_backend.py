@@ -224,3 +224,50 @@ def test_the_job_log_says_what_the_agent_does(client, folder, monkeypatch, caplo
         positions.append(found[0])
     assert positions == sorted(positions), lines  # in the order it happened
     assert any(l.startswith("Job finished in") for l in lines)
+
+
+def test_the_job_log_shows_each_tool_call_and_its_outcome(client, folder, monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger="excel-filler.job")
+    fake = FakeClaude([
+        ([("read_pdf", {"path": "missing.pdf"})], "tool_use"),
+        ([("read_excel", {"path": "costs.xlsx"})], "tool_use"),
+        ([("text", "Nothing to fill.")], "end_turn"),
+    ])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    client.post("/api/folder", json={"path": str(folder)})
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]})
+        events = []
+        while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
+            events.append(ws.receive_json())
+    results = [e for e in events if e["type"] == "tool_result"]
+    assert [(e["name"], e["ok"]) for e in results] == [("read_pdf", False), ("read_excel", True)]
+    lines = [r.getMessage() for r in caplog.records if r.name == "excel-filler.job"]
+    failed = next(l for l in lines if l.startswith("Tool read_pdf("))
+    assert "path='missing.pdf'" in failed and "-> ERROR:" in failed
+    assert any(l.startswith("Tool read_excel(path='costs.xlsx') -> OK (") for l in lines), lines
+
+
+def test_window_errors_are_logged(client, caplog):
+    import logging
+    caplog.set_level(logging.ERROR, logger="excel-filler.window")
+    assert client.post("/api/client-error", json={"message": "TypeError: x is undefined", "stack": "at Change"}).json() == {"ok": True}
+    assert client.post("/api/client-error", json={"message": "x"}, headers={"x-token": "wrong"}).status_code == 403
+    assert any("Window error: TypeError: x is undefined" in r.getMessage() and "at Change" in r.getMessage()
+               for r in caplog.records)
+
+
+def test_an_event_json_cannot_encode_does_not_break_the_connection():
+    import datetime
+    from pathlib import Path
+    from excel_filler.desktop.server import Desktop
+    desktop = Desktop()
+    client = TestClient(create_app(TOKEN, desktop))
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        desktop.ui.emit({"type": "message", "text": "odd", "when": datetime.date(2026, 9, 29), "where": Path("a")})
+        desktop.ui.message("next")
+        assert ws.receive_json()["when"] == "2026-09-29"
+        assert ws.receive_json()["text"] == "next"

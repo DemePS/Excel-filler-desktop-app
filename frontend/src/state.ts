@@ -40,6 +40,9 @@ export function answered(state: State, text: string): State {
   return text.trim() ? { ...state, items: [...state.items, { kind: 'you', text: text.trim() }] } : state
 }
 
+// Text from an event, whatever the backend sent (never undefined or an object, which would break the page).
+const text = (value: unknown) => (typeof value === 'string' ? value : value == null ? '' : String(value))
+
 export function apply(state: State, event: AgentEvent): State {
   const items = state.items
   const last = items[items.length - 1]
@@ -47,27 +50,36 @@ export function apply(state: State, event: AgentEvent): State {
     case 'assistant_start':
       return { ...state, items: [...items, { kind: 'claude', text: '' }] }
     case 'text':
-      if (last?.kind === 'claude') return { ...state, items: [...items.slice(0, -1), { ...last, text: last.text + event.text }] }
-      return { ...state, items: [...items, { kind: 'claude', text: event.text }] }
+      if (last?.kind === 'claude') return { ...state, items: [...items.slice(0, -1), { ...last, text: last.text + text(event.text) }] }
+      return { ...state, items: [...items, { kind: 'claude', text: text(event.text) }] }
     case 'tool':
       return { ...state, items: [...items, { kind: 'step', label: TOOL_LABELS[event.name] ?? event.name, detail: '' }] }
     case 'tool_detail': {
       // Only the file a tool works on is worth showing ("path='costs.xlsx', ..." -> costs.xlsx).
-      const file = /path='([^']+)'/.exec(event.text)?.[1]
-      const pages = /pages='([^']+)'/.exec(event.text)?.[1]
+      const file = /path='([^']+)'/.exec(text(event.text))?.[1]
+      const pages = /pages='([^']+)'/.exec(text(event.text))?.[1]
       if (last?.kind === 'step' && file) {
         return { ...state, items: [...items.slice(0, -1), { ...last, detail: pages ? `${file}, page ${pages}` : file }] }
       }
       return state
     }
+    case 'tool_result': {
+      // A tool that failed: shown on its step (Claude usually corrects itself and tries again).
+      if (event.ok) return state
+      const i = items.map((item) => item.kind).lastIndexOf('step')
+      if (i < 0) return state
+      const step = items[i] as Extract<Item, { kind: 'step' }>
+      return { ...state, items: [...items.slice(0, i), { ...step, failed: text(event.summary) || 'failed' }, ...items.slice(i + 1)] }
+    }
     case 'status':
-      if (TECHNICAL_STATUS.test(event.text)) return state
-      return { ...state, items: [...items, { kind: 'note', tone: 'status', text: event.text }] }
+      if (TECHNICAL_STATUS.test(text(event.text))) return state
+      return { ...state, items: [...items, { kind: 'note', tone: 'status', text: text(event.text) }] }
     case 'success':
     case 'failure':
     case 'warning':
     case 'message':
-      return { ...state, items: [...items, { kind: 'note', tone: event.type, text: event.text }] }
+    case 'error':
+      return { ...state, items: [...items, { kind: 'note', tone: event.type, text: text(event.text) }] }
     case 'panel':
       if (event.tone === 'question') return { ...state, lastAsked: event.title }
       return withChange(state, { kind: 'change', event })

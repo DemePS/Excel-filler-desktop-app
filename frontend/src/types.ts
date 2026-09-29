@@ -3,7 +3,7 @@
 export type CellRow = { cell: string; old: string; new: string; format: string | null }
 
 export type AgentEvent =
-  | { type: 'status' | 'success' | 'failure' | 'warning' | 'message'; text: string }
+  | { type: 'status' | 'success' | 'failure' | 'warning' | 'message' | 'error'; text: string }
   | { type: 'panel'; title: string; lines: string[]; tone: string }
   | { type: 'diff'; action: string; name: string; path: string; first_line: number; lines: string[] }
   | { type: 'cells'; title: string; rows: CellRow[]; more: number }
@@ -14,6 +14,7 @@ export type AgentEvent =
   | { type: 'text'; text: string }
   | { type: 'tool'; name: string }
   | { type: 'tool_detail'; text: string }
+  | { type: 'tool_result'; name: string; arguments: string; ok: boolean; summary: string }
   | { type: 'busy'; busy: boolean }
   | ({ type: 'listing' } & Listing)
 
@@ -30,8 +31,8 @@ export type Hello = Listing & {
 export type Item =
   | { kind: 'claude'; text: string }
   | { kind: 'you'; text: string }
-  | { kind: 'step'; label: string; detail: string }
-  | { kind: 'note'; tone: 'status' | 'success' | 'failure' | 'warning' | 'message'; text: string }
+  | { kind: 'step'; label: string; detail: string; failed?: string }
+  | { kind: 'note'; tone: 'status' | 'success' | 'failure' | 'warning' | 'message' | 'error'; text: string }
   | { kind: 'change'; event: Extract<AgentEvent, { type: 'panel' | 'diff' | 'cells' }> }
 
 export type Question =

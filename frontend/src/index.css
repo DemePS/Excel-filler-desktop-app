@@ -69,6 +69,14 @@ button.wide { width: 100%; padding: 10px; }
 button.link { border: none; background: none; text-decoration: underline; margin-left: 12px; padding: 0; }
 
 .banner { padding: 8px 20px; }
+.claude-status { font-size: 0.85em; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.claude-status.checking { color: var(--muted); background: var(--bg); }
+.claude-status.ok { color: var(--accent); background: var(--accent-soft); }
+.claude-status.failed { color: var(--danger); background: var(--danger-soft); }
+.step-failed { margin: 2px 0 0 14px; color: var(--warn); font-size: 0.9em; }
+.crash { max-width: 640px; margin: 80px auto; padding: 24px; line-height: 1.5; }
+.crash pre { white-space: pre-wrap; background: var(--danger-soft); color: var(--danger); padding: 10px; border-radius: 8px; }
+.error-card { border: 1px solid var(--danger); background: var(--danger-soft); color: var(--danger); border-radius: 10px; padding: 10px 14px; line-height: 1.45; }
 .banner.warning { background: var(--warn-soft); color: var(--warn); }
 .banner.error { background: var(--danger-soft); color: var(--danger); }
 

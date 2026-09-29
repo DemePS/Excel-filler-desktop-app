@@ -9,6 +9,8 @@ machine can drive the agent.
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import os
 import secrets
 import threading
@@ -113,6 +115,20 @@ class AnswerIn(BaseModel):
     value: str | None = None
 
 
+class ClientErrorIn(BaseModel):
+    message: str
+    stack: str | None = None
+
+
+window_log = logging.getLogger("excel-filler.window")
+
+
+def to_json(event: dict) -> str:
+    """An event as JSON; a value JSON cannot encode (a date, a path) is sent as text rather than
+    breaking the connection."""
+    return json.dumps(event, default=str)
+
+
 def connection_problem() -> str | None:
     """Why the agent cannot reach Claude yet, in plain words (None when the settings look complete)."""
     if not os.environ.get("ANTHROPIC_FOUNDRY_ENDPOINT"):
@@ -138,6 +154,15 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     def get_state():
         return {**desktop.listing(), "busy": desktop.busy, "connection_problem": connection_problem(),
                 "pending": desktop.ui.pending_questions()}
+
+    @app.get("/api/check", dependencies=guarded)
+    def check():
+        """Can the app reach Claude? A 1-token call; the window shows the answer at startup."""
+        if problem := connection_problem():
+            return {"ok": False, "message": problem}
+        ok, message = session.check_connection()
+        (job_log.info if ok else job_log.error)("Connection check: %s", message if not ok else "OK, " + message)
+        return {"ok": ok, "message": message}
 
     @app.post("/api/folder", dependencies=guarded)
     def open_folder(body: FolderIn):
@@ -215,6 +240,12 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         desktop.ui.cancel_questions()
         return {"ok": True}
 
+    @app.post("/api/client-error", dependencies=guarded)
+    def client_error(body: ClientErrorIn):
+        # An error in the window's code: logged, since the window itself may not be able to show it.
+        window_log.error("Window error: %s%s", body.message[:2000], f"\n{body.stack[:4000]}" if body.stack else "")
+        return {"ok": True}
+
     @app.websocket("/ws")
     async def events(ws: WebSocket):
         supplied = ws.query_params.get("token") or ""
@@ -231,15 +262,15 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         history = desktop.ui.subscribe(listener)
         receiver = getter = None
         try:
-            await ws.send_json({"type": "hello", "history": history, "busy": desktop.busy, **desktop.listing(),
-                                "connection_problem": connection_problem()})
+            await ws.send_text(to_json({"type": "hello", "history": history, "busy": desktop.busy,
+                                        **desktop.listing(), "connection_problem": connection_problem()}))
             receiver = asyncio.create_task(ws.receive_text())  # only to notice the window closing
             while True:
                 getter = asyncio.create_task(queue.get())
                 done, _ = await asyncio.wait({getter, receiver}, return_when=asyncio.FIRST_COMPLETED)
                 if receiver in done:  # the window closed or reloaded; it reconnects and gets the history
                     break
-                await ws.send_json(getter.result())
+                await ws.send_text(to_json(getter.result()))
         except (WebSocketDisconnect, RuntimeError, OSError):
             pass  # the connection dropped while sending
         finally:

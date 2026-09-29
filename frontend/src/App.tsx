@@ -25,6 +25,18 @@ export default function App() {
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [followUp, setFollowUp] = useState('')
+  const [claude, setClaude] = useState<{ state: 'checking' | 'ok' | 'failed'; message: string }>({ state: 'checking', message: '' })
+
+  const checkConnection = useCallback(async () => {
+    setClaude({ state: 'checking', message: '' })
+    try {
+      const result = await api.check()
+      setClaude({ state: result.ok ? 'ok' : 'failed', message: result.message })
+    } catch (e) {
+      setClaude({ state: 'failed', message: (e as Error).message })
+    }
+  }, [])
+  useEffect(() => { if (connected) checkConnection() }, [connected, checkConnection])
 
   useEffect(() => {
     let ws: WebSocket | null = null
@@ -89,13 +101,21 @@ export default function App() {
       <header>
         <div className="brand"><span className="logo" aria-hidden /> Excel filler</div>
         <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
+        <span className={`claude-status ${claude.state}`} title={claude.message}>
+          {claude.state === 'checking' ? 'Checking Claude…' : claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
+        </span>
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy}>
           {listing.folder ? 'Open another workbook…' : 'Open workbook…'}
         </button>
       </header>
 
       {!connected && <div className="banner warning">Connecting to the agent…</div>}
-      {state.problem && <div className="banner warning">{state.problem} Ask whoever set up the app, or see the README.</div>}
+      {claude.state === 'failed' && (
+        <div className="banner error" role="alert">
+          <b>Claude cannot be reached.</b> {claude.message}
+          <button className="link" onClick={checkConnection}>Retry</button>
+        </div>
+      )}
       {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>Dismiss</button></div>}
 
       <main>

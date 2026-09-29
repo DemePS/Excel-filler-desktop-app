@@ -100,6 +100,7 @@ class WebUI(UI):
     def failure(self, text): self.emit({"type": "failure", "text": text})
     def warning(self, text): self.emit({"type": "warning", "text": text})
     def message(self, text): self.emit({"type": "message", "text": text})
+    def error(self, text): self.emit({"type": "error", "text": text})
 
     def panel(self, title, lines=(), tone="change"):
         self.emit({"type": "panel", "title": title, "lines": list(lines), "tone": tone})
@@ -126,3 +127,6 @@ class WebUI(UI):
     def tool_start(self, name): self.emit({"type": "tool", "name": name})
     def tool_detail(self, text): self.emit({"type": "tool_detail", "text": text.strip()})
     def assistant_end(self): self.emit({"type": "assistant_end"})
+
+    def tool_result(self, name, arguments, ok, summary):
+        self.emit({"type": "tool_result", "name": name, "arguments": arguments, "ok": ok, "summary": summary})

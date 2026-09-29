@@ -131,6 +131,8 @@ def main() -> None:
         time.sleep(0.05)
     url = f"http://127.0.0.1:{port}/?token={token}"
     log.info("Backend ready on 127.0.0.1:%s", port)
+    from coding_agent.errors import connection_summary
+    log.info("Claude: %s", connection_summary())
 
     try:
         if args.browser:

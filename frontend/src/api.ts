@@ -21,12 +21,28 @@ export const api = {
   followUp: (text: string) => call('/api/followup', { text }),
   answer: (id: string, value: string | null) => call('/api/answer', { id, value }),
   stop: () => call('/api/stop', {}),
+  check: () => call<{ ok: boolean; message: string }>('/api/check'),
+}
+
+// Sends an error of the window's code to the backend, which writes it to the log file.
+export function reportError(message: string, stack?: string) {
+  fetch('/api/client-error', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-token': token },
+    body: JSON.stringify({ message: message || 'Unknown error', stack: stack ?? null }),
+  }).catch(() => {})
 }
 
 export function connectEvents(onEvent: (event: unknown) => void, onClose: () => void): WebSocket {
   const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
   const ws = new WebSocket(`${scheme}://${window.location.host}/ws?token=${encodeURIComponent(token)}`)
-  ws.onmessage = (message) => onEvent(JSON.parse(message.data))
+  ws.onmessage = (message) => {
+    try {
+      onEvent(JSON.parse(message.data))
+    } catch (e) {
+      reportError(`Could not handle an event: ${(e as Error).message}`, String(message.data).slice(0, 2000))
+    }
+  }
   ws.onclose = onClose
   return ws
 }

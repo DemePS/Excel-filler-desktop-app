@@ -13,8 +13,8 @@ export function Change({ item }: { item: Extract<Item, { kind: 'change' }> }) {
             <tr><th>Cell</th><th>Now</th><th>New value</th><th>Format</th></tr>
           </thead>
           <tbody>
-            {event.rows.map((row) => (
-              <tr key={row.cell}>
+            {(event.rows ?? []).map((row, i) => (
+              <tr key={i}>
                 <td className="mono">{row.cell}</td>
                 <td className={row.old ? 'old' : 'empty'}>{row.old || 'empty'}</td>
                 <td className={row.new ? 'new' : 'empty'}>{row.new || 'empty'}</td>
@@ -32,7 +32,7 @@ export function Change({ item }: { item: Extract<Item, { kind: 'change' }> }) {
       <div className="change">
         <div className="change-title">{event.action} {event.name}</div>
         <pre className="diff">
-          {event.lines.map((line, i) => (
+          {(event.lines ?? []).map((line, i) => (
             <div key={i} className={line.startsWith('+') && !line.startsWith('+++') ? 'add' : line.startsWith('-') && !line.startsWith('---') ? 'del' : line.startsWith('@@') ? 'hunk' : ''}>{line || ' '}</div>
           ))}
         </pre>
@@ -42,7 +42,7 @@ export function Change({ item }: { item: Extract<Item, { kind: 'change' }> }) {
   return (
     <div className={`change tone-${event.tone}`}>
       <div className="change-title">{event.title}</div>
-      {event.lines.length > 0 && <pre className="panel-lines">{event.lines.join('\n')}</pre>}
+      {event.lines?.length > 0 && <pre className="panel-lines">{event.lines.join('\n')}</pre>}
     </div>
   )
 }
