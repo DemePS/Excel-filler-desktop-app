@@ -74,8 +74,7 @@ jobs:
           if ($env:CLIENT_ID) { "Organization build: gateway $env:GATEWAY" } else { "Developer build (no organization settings)" }
 
       - name: Build ExcelFiller.exe
-        working-directory: packaging
-        run: uv run --python 3.12 --group build pyinstaller --noconfirm --distpath ../dist --workpath ../build excel-filler.spec
+        run: uv run --python 3.12 --group build pyinstaller --noconfirm --distpath dist --workpath build packaging/excel-filler.spec
 
       - name: Self-test of the built app
         run: |
