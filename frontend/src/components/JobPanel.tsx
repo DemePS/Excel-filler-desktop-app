@@ -30,6 +30,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
+  const [filter, setFilter] = useState('')
   const known = useRef<{ folder: string | null; documents: string[] }>({ folder: null, documents: [] })
 
   // Preselect the workbook that was opened, and tick the documents: all PDFs of a newly opened
@@ -54,6 +55,12 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
 
   if (!listing.folder) return <aside className="job"><p className="muted">Open the workbook to fill to start.</p></aside>
 
+  // Ticks or unticks every document shown (all of them, or those matching the filter).
+  const words = filter.toLowerCase().split(/\s+/).filter(Boolean)
+  const shown = listing.documents.filter((d) => words.every((w) => d.toLowerCase().includes(w)))
+  const selectAll = (on: boolean) =>
+    setDocuments((current) => (on ? [...current, ...shown.filter((d) => !current.includes(d))] : current.filter((d) => !shown.includes(d))))
+
   const toggle = (name: string) =>
     setDocuments((current) => (current.includes(name) ? current.filter((d) => d !== name) : [...current, name]))
 
@@ -69,11 +76,22 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
         <p className="muted">No .xlsx or .xlsm file in this folder.</p>
       )}
 
-      <fieldset>
-        <legend>Documents to use ({documents.length})</legend>
+      <fieldset className="documents-box">
+        <legend>Documents to use ({documents.length} of {listing.documents.length})</legend>
         {listing.documents.length === 0 && <p className="muted">No PDF or image in this folder yet.</p>}
+        {listing.documents.length > 1 && (
+          <div className="documents-tools">
+            {listing.documents.length > 6 && (
+              <input type="search" placeholder="Filter documents…" value={filter} aria-label="Filter documents"
+                onChange={(e) => setFilter(e.target.value)} />
+            )}
+            <button type="button" className="link" onClick={() => selectAll(true)}>All{filter ? ' shown' : ''}</button>
+            <button type="button" className="link" onClick={() => selectAll(false)}>None{filter ? ' shown' : ''}</button>
+          </div>
+        )}
         <div className="documents">
-          {listing.documents.map((d) => (
+          {shown.length === 0 && filter && <p className="muted">No document matches “{filter}”.</p>}
+          {shown.map((d) => (
             <label key={d} className="check" title={d}>
               <input type="checkbox" checked={documents.includes(d)} onChange={() => toggle(d)} /> <DocumentName path={d} />
             </label>
