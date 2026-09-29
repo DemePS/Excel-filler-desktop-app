@@ -46,7 +46,10 @@ class Desktop:
         # Documents added with the file dialog: relative paths inside the folder, absolute paths for
         # documents elsewhere (their folder is then readable by the agent, never writable).
         self.extra_documents: set[str] = set()
+        # The folder the documents come from, when changed from the workbook's (None: the workbook's).
+        self.documents_folder: Path | None = None
         self.busy = False
+        self.auto = False  # auto mode: changes applied without asking (a backup is kept)
         self.lock = threading.Lock()
         # Checked once at startup (GET /api/access); a refusal by the gateway later updates it.
         self.access: gateway.Access | None = None
@@ -54,26 +57,35 @@ class Desktop:
 
     def listing(self) -> dict:
         if self.folder is None:
-            return {"folder": None, "workbooks": [], "documents": [], "workbook": None}
+            return {"folder": None, "workbooks": [], "documents": [], "workbook": None, "documents_folder": None}
         files = sorted((p for p in self.folder.iterdir() if p.is_file()), key=lambda p: p.name.lower())
-        documents = [p.name for p in files if p.suffix.lower() in DOCUMENT_TYPES]
+        if self.documents_folder is None:
+            documents = [p.name for p in files if p.suffix.lower() in DOCUMENT_TYPES]
+        else:  # read again each time: documents added to that folder meanwhile show up
+            documents = [self.document_name(p) for p in folder_documents(self.documents_folder)] if self.documents_folder.is_dir() else []
         documents += sorted(d for d in self.extra_documents if d not in documents and (self.folder / d).is_file())
         return {
             "folder": str(self.folder),
             "workbooks": [p.name for p in files if p.suffix.lower() in (".xlsx", ".xlsm") and not p.name.startswith("~$")],
             "documents": documents,
             "workbook": self.workbook,
+            "documents_folder": str(self.documents_folder) if self.documents_folder else None,
         }
+
+    def document_name(self, path: Path) -> str:
+        """How the window and the job name a document: relative inside the workbook's folder, else absolute."""
+        return path.relative_to(self.folder).as_posix() if self.folder in path.parents else path.as_posix()
 
     def open(self, folder: Path, workbook: str | None = None) -> None:
         if self.busy:
             raise HTTPException(409, "Wait for the current job to finish.")
         try:
-            self.folder = agent.open_folder(folder, self.ui)
+            self.folder = agent.open_folder(folder, self.ui, auto=self.auto)
         except (NotADirectoryError, OSError) as e:
             raise HTTPException(400, str(e))
         self.workbook = workbook
         self.extra_documents = set()
+        self.documents_folder = None
         self.ui.emit({"type": "listing", **self.listing()})
 
     def workbook_times(self) -> dict[str, int]:
@@ -134,6 +146,10 @@ class TextIn(BaseModel):
     text: str
 
 
+class AutoIn(BaseModel):
+    on: bool
+
+
 class AnswerIn(BaseModel):
     id: str
     value: str | None = None
@@ -160,6 +176,12 @@ def job_request(workbook: str, documents: list[str], notes: str, sheets: list[st
     if sheets:
         workbook += f" ({'sheet' if len(sheets) == 1 else 'sheets'} {', '.join(sheets)})"
     return f"Fill {workbook}" + (f" from {listed}" if listed else "") + (f"\n{notes.strip()}" if notes.strip() else "")
+
+
+def folder_documents(folder: Path) -> list[Path]:
+    """The PDFs and images of a folder (not its subfolders), by name."""
+    return sorted((p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in DOCUMENT_TYPES
+                   and p.suffix.lower() not in (".txt", ".csv")), key=lambda p: p.name.lower())
 
 
 def open_file(path: Path) -> None:
@@ -198,7 +220,20 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     @app.get("/api/state", dependencies=guarded)
     def get_state():
         return {**desktop.listing(), "busy": desktop.busy, "connection_problem": connection_problem(), "notice": gateway.current().notice,
-                "pending": desktop.ui.pending_questions()}
+                "pending": desktop.ui.pending_questions(), "auto": desktop.auto}
+
+    @app.post("/api/auto", dependencies=guarded)
+    def set_auto(body: AutoIn):
+        """Auto mode on or off: changes applied without asking (a backup of the workbook is still kept;
+        a workbook whose features saving would damage still asks), and Claude's questions not asked."""
+        if desktop.busy:
+            raise HTTPException(409, "Wait for the current job to finish.")
+        desktop.auto = body.on
+        if desktop.folder is not None:
+            agent.set_auto(body.on)
+        job_log.info("Auto mode %s", "on: changes are applied without asking" if body.on else "off")
+        desktop.ui.emit({"type": "auto", "on": body.on})
+        return {"auto": desktop.auto}
 
     def refuse_without_access() -> None:
         if gateway.access_required() and not (desktop.access and desktop.access.ok):
@@ -286,29 +321,53 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
             raise HTTPException(400, "Not added (not a PDF, image or text document): " + ", ".join(refused))
         return {**desktop.listing(), "added": added}
 
-    @app.post("/api/document-folder", dependencies=guarded)
-    def add_document_folder(body: FolderIn):
-        """Add every document of a folder (PDFs and images, not its subfolders). A folder outside the
-        workbook's becomes readable by the agent, read-only."""
+    def document_folder(raw: str) -> tuple[Path, list[str]]:
+        """A folder chosen for documents, made readable by the agent (read-only) when outside the
+        workbook's, and its documents as the job names them."""
         if desktop.folder is None:
             raise HTTPException(400, "Open a workbook first.")
         if desktop.busy:
             raise HTTPException(409, "Wait for the current job to finish.")
-        folder = Path(body.path).expanduser().resolve()
+        folder = Path(raw).expanduser().resolve()
         if not folder.is_dir():
             raise HTTPException(400, f"Not a folder: {folder}")
-        paths = sorted((p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in DOCUMENT_TYPES
-                        and p.suffix.lower() not in (".txt", ".csv")), key=lambda p: p.name.lower())
+        paths = folder_documents(folder)
         if not paths:
             raise HTTPException(400, f"No PDF or image in {folder} (documents in its subfolders are not included).")
         inside = folder == desktop.folder or desktop.folder in folder.parents
         if not inside:
             session.add_read_folder(folder)
-        added = [p.relative_to(desktop.folder).as_posix() if inside else p.as_posix() for p in paths]
+        job_log.info("Documents folder %s: %d document(s)%s", folder, len(paths), "" if inside else " (read-only)")
+        return folder, [desktop.document_name(p) for p in paths]
+
+    @app.post("/api/document-folder", dependencies=guarded)
+    def add_document_folder(body: FolderIn):
+        """Add every document of a folder (PDFs and images, not its subfolders). A folder outside the
+        workbook's becomes readable by the agent, read-only."""
+        _, added = document_folder(body.path)
         desktop.extra_documents.update(added)
-        job_log.info("Documents folder %s: %d document(s)%s", folder, len(added), "" if inside else " (read-only)")
         desktop.ui.emit({"type": "listing", **desktop.listing()})
         return {**desktop.listing(), "added": added}
+
+    @app.post("/api/document-folder/change", dependencies=guarded)
+    def change_document_folder(body: FolderIn):
+        """Take the documents from this folder instead: only its documents are listed (not the
+        workbook folder's, nor those added before)."""
+        folder, added = document_folder(body.path)
+        desktop.documents_folder = None if folder == desktop.folder else folder
+        desktop.extra_documents = set()
+        desktop.ui.emit({"type": "listing", **desktop.listing()})
+        return {**desktop.listing(), "added": added}
+
+    @app.post("/api/document-folder/reset", dependencies=guarded)
+    def reset_document_folder():
+        """Back to the documents next to the workbook."""
+        if desktop.busy:
+            raise HTTPException(409, "Wait for the current job to finish.")
+        desktop.documents_folder = None
+        desktop.extra_documents = set()
+        desktop.ui.emit({"type": "listing", **desktop.listing()})
+        return desktop.listing()
 
     @app.get("/api/sheets", dependencies=guarded)
     def sheets(workbook: str):
@@ -396,7 +455,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         history = desktop.ui.subscribe(listener)
         receiver = getter = None
         try:
-            await ws.send_text(to_json({"type": "hello", "history": history, "busy": desktop.busy,
+            await ws.send_text(to_json({"type": "hello", "history": history, "busy": desktop.busy, "auto": desktop.auto,
                                         **desktop.listing(), "connection_problem": connection_problem(),
                                         "notice": gateway.current().notice}))
             receiver = asyncio.create_task(ws.receive_text())  # only to notice the window closing

@@ -15,9 +15,9 @@ function reducer(state: State, action: Action): State {
   if (action.kind === 'you') return answered(state, action.text)
   if (action.kind === 'hello') {
     // A (re)connection: rebuild everything from the history the backend kept.
-    const { history, busy, connection_problem, notice, folder, workbooks, documents, workbook } = action.hello
+    const { history, busy, connection_problem, notice, folder, workbooks, documents, workbook, documents_folder } = action.hello
     const rebuilt = history.reduce(apply, { ...initialState })
-    return { ...rebuilt, busy, problem: connection_problem, notice: notice ?? null, listing: { folder, workbooks, documents, workbook } }
+    return { ...rebuilt, busy, auto: action.hello.auto ?? false, problem: connection_problem, notice: notice ?? null, listing: { folder, workbooks, documents, workbook, documents_folder } }
   }
   return apply(state, action.event)
 }
@@ -118,9 +118,27 @@ export default function App() {
       const path = await pickDocumentFolder(state.listing.folder)
       if (path) {
         const result = await api.addDocumentFolder(path)
-        dispatch({ kind: 'event', event: { type: 'listing', folder: result.folder, workbooks: result.workbooks, documents: result.documents, workbook: result.workbook } })
+        dispatch({ kind: 'event', event: { type: 'listing', folder: result.folder, workbooks: result.workbooks, documents: result.documents, workbook: result.workbook, documents_folder: result.documents_folder } })
         setSelection({ documents: result.added })
       }
+    })
+
+  // Documents from another folder instead: only that folder's documents are listed (and ticked).
+  const changeDocumentFolder = () =>
+    run(async () => {
+      if (!state.listing.folder) return
+      const path = await pickDocumentFolder(state.listing.documents_folder ?? state.listing.folder)
+      if (path) {
+        const result = await api.changeDocumentFolder(path)
+        dispatch({ kind: 'event', event: { type: 'listing', folder: result.folder, workbooks: result.workbooks, documents: result.documents, workbook: result.workbook, documents_folder: result.documents_folder } })
+        setSelection({ documents: result.added })
+      }
+    })
+
+  const resetDocumentFolder = () =>
+    run(async () => {
+      const listing = await api.resetDocumentFolder()
+      dispatch({ kind: 'event', event: { type: 'listing', ...listing } })
     })
 
   const addDocuments = () =>
@@ -152,6 +170,7 @@ export default function App() {
         <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
         {access.user && <span className="user" title="Signed in">{access.user}</span>}
         {/* Nothing while the startup check runs: only its result (connected, or an error). */}
+        {state.auto && <span className="auto-tag" title="Changes are applied without asking; a backup of the workbook is kept">Auto mode</span>}
         {claude.state !== 'checking' && (
           <span className={`claude-status ${claude.state}`} title={claude.message}>
             {claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
@@ -174,7 +193,8 @@ export default function App() {
       {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>Dismiss</button></div>}
 
       <main style={{ gridTemplateColumns: `${sidebarWidth}px auto minmax(0, 1fr)` }}>
-        <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder} selection={selection}
+        <JobPanel listing={listing} busy={busy} auto={state.auto} onAuto={(on) => run(() => api.setAuto(on))} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder}
+          onChangeDocumentFolder={changeDocumentFolder} onResetDocumentFolder={resetDocumentFolder} selection={selection}
           onFill={(workbook, documents, notes, sheets) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes, sheets) })} />
         <Splitter width={sidebarWidth} onResize={setSidebarWidth} />
         <section className="feed">

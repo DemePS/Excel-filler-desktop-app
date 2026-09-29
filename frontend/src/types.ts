@@ -14,6 +14,7 @@ export type AgentEvent =
   | { type: 'text'; text: string }
   | { type: 'request'; text: string }
   | ({ type: 'access' } & Access)
+  | { type: 'auto'; on: boolean }
   | { type: 'saved'; name: string; path: string; backups: string }
   | { type: 'tool'; name: string }
   | { type: 'tool_detail'; text: string }
@@ -21,7 +22,13 @@ export type AgentEvent =
   | { type: 'busy'; busy: boolean }
   | ({ type: 'listing' } & Listing)
 
-export type Listing = { folder: string | null; workbooks: string[]; documents: string[]; workbook: string | null }
+export type Listing = {
+  folder: string | null
+  workbooks: string[]
+  documents: string[]
+  workbook: string | null
+  documents_folder?: string | null // where the documents come from, when not the workbook's folder
+}
 
 export type Hello = Listing & {
   type: 'hello'
@@ -29,6 +36,7 @@ export type Hello = Listing & {
   busy: boolean
   connection_problem: string | null
   notice: string | null // a message from IT (the gateway's settings)
+  auto?: boolean
 }
 
 // What the activity feed shows.

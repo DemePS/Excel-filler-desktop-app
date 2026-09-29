@@ -312,6 +312,44 @@ def test_a_documents_folder_inside_the_workbook_folder_is_relative(client, folde
     assert r.json()["added"] == ["invoices/x.pdf"] and "invoices/x.pdf" in r.json()["documents"]
 
 
+def test_changing_the_documents_folder_lists_only_its_documents(client, folder, tmp_path):
+    from coding_agent import state
+    elsewhere = tmp_path / "scans"
+    elsewhere.mkdir()
+    make_pdf(elsewhere / "a.pdf", ["A"])
+    (folder / "invoices").mkdir()
+    make_pdf(folder / "invoices" / "x.pdf", ["X"])
+    client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    client.post("/api/documents", json={"paths": [str(folder / "invoice.pdf")]})
+
+    r = client.post("/api/document-folder/change", json={"path": str(elsewhere)})
+    assert r.status_code == 200, r.text
+    a = (elsewhere / "a.pdf").as_posix()
+    assert r.json()["documents"] == [a] and r.json()["added"] == [a]  # not invoice.pdf next to the workbook
+    assert r.json()["documents_folder"] == str(elsewhere.resolve())
+    assert elsewhere.resolve() in state.read_roots  # readable, never writable
+    make_pdf(elsewhere / "b.pdf", ["B"])  # added to that folder meanwhile: listed too
+    assert client.get("/api/state").json()["documents"] == [a, (elsewhere / "b.pdf").as_posix()]
+    assert client.get("/api/state").json()["workbooks"] == ["costs.xlsx"]  # the workbook stays
+
+    r = client.post("/api/document-folder/change", json={"path": str(folder / "invoices")})
+    assert r.json()["documents"] == ["invoices/x.pdf"]  # inside the workbook's folder: relative
+
+    r = client.post("/api/document-folder/reset", json={})
+    assert r.json()["documents"] == ["invoice.pdf"] and r.json()["documents_folder"] is None
+    assert client.post("/api/document-folder/change", json={"path": str(tmp_path / "nope")}).status_code == 400
+
+
+def test_opening_another_workbook_goes_back_to_its_documents(client, folder, tmp_path):
+    elsewhere = tmp_path / "scans"
+    elsewhere.mkdir()
+    make_pdf(elsewhere / "a.pdf", ["A"])
+    client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    client.post("/api/document-folder/change", json={"path": str(elsewhere)})
+    r = client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    assert r.json()["documents"] == ["invoice.pdf"] and r.json()["documents_folder"] is None
+
+
 def test_after_a_job_the_saved_workbook_can_be_opened(client, folder, monkeypatch):
     from excel_filler.desktop import server
     fake = FakeClaude([
@@ -398,3 +436,29 @@ def test_the_job_log_names_the_sheet_and_range(client, folder, monkeypatch, capl
             events.append(ws.receive_json())
     lines = [r.getMessage() for r in caplog.records if r.name == "excel-filler.job"]
     assert "Claude reads the workbook costs.xlsx (sheet Costs, A1:B5)" in lines, lines
+
+
+def test_auto_mode_applies_changes_without_asking(client, folder, monkeypatch):
+    fake = FakeClaude([
+        ([("edit_excel", {"path": "costs.xlsx", "changes": [{"sheet": "Costs", "cell": "A2", "value": "Sensors"}]})], "tool_use"),
+        ([("text", "Filled A2.")], "end_turn"),
+    ])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    client.post("/api/folder", json={"path": str(folder)})
+    assert client.get("/api/state").json()["auto"] is False
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        assert client.post("/api/auto", json={"on": True}).json() == {"auto": True}
+        received = [ws.receive_json() for _ in range(2)]  # the engine's own note, then the switch's state
+        assert {"type": "auto", "on": True} in received
+        client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]})
+        events = []
+        while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
+            events.append(ws.receive_json())
+    assert not [e for e in events if e["type"] in ("confirm", "ask")]  # nothing to approve or answer
+    assert openpyxl.load_workbook(folder / "costs.xlsx")["Costs"]["A2"].value == "Sensors"
+    text = " ".join(b.get("text", "") for b in fake.requests[0]["messages"][0]["content"])
+    assert "Auto mode: nobody approves the changes" in text
+    assert client.post("/api/auto", json={"on": False}).json() == {"auto": False}
+    from coding_agent import state
+    assert state.auto_mode is False

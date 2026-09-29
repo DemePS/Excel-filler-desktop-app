@@ -4,8 +4,8 @@ Fill an Excel workbook from PDF documents with Claude (Azure / Microsoft Foundry
 every change before it is saved.
 
 You open the workbook and pick the documents (invoices, statements, scans): those next to the
-workbook, a documents folder of their own (**Documents folder…**), or single files from
-anywhere (**Add files…**). Folders outside the workbook's are read-only for the agent, which only
+workbook, the documents of another folder instead (**Change folder…**; **Use the workbook's folder**
+goes back), more folders (**Add folder…**), or single files from anywhere (**Add files…**). Folders outside the workbook's are read-only for the agent, which only
 ever writes the workbook. It
 opens the workbook first to see which fields are needed, reads only the document pages that hold
 them, writes the values (you approve a cell-by-cell diff), checks them, and ends with the source
@@ -57,6 +57,10 @@ account is remembered and later launches sign in silently. Developers' `az login
 account needs access to the Foundry resource (a role such as *Azure AI User*, granted by IT).
 Optional: `AZURE_TENANT_ID` (the resource's tenant, if not your account's) and `AZURE_CLIENT_ID`
 (your organization's app registration for the sign-in page).
+
+**Auto mode** (the switch above *Fill workbook*, or `excel-filler --auto`): changes are saved without
+asking and Claude's questions are not asked; missing or ambiguous values are left empty and listed at
+the end. A workbook with features that saving would damage still asks first.
 
 A copy of the previous version of every workbook it saves is kept in `~/.coding-agent/backups/`.
 

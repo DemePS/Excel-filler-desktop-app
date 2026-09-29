@@ -9,7 +9,11 @@ type Props = {
   busy: boolean
   onFill: (workbook: string, documents: string[], notes: string, sheets: string[]) => void
   onAddDocuments: () => void
+  auto: boolean
+  onAuto: (on: boolean) => void
   onAddDocumentFolder: () => void
+  onChangeDocumentFolder: () => void
+  onResetDocumentFolder: () => void
   selection: { documents: string[] } | null // documents to tick instead of the current ones
 }
 
@@ -27,7 +31,7 @@ function DocumentName({ path }: { path: string }) {
   )
 }
 
-export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentFolder, selection }: Props) {
+export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentFolder, onChangeDocumentFolder, onResetDocumentFolder, selection, auto, onAuto }: Props) {
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
@@ -117,6 +121,14 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
             </span>
           )}
         </div>
+        <div className="documents-from" title={listing.documents_folder ?? listing.folder}>
+          From {listing.documents_folder ? <b>{listing.documents_folder.split(/[\\/]/).filter(Boolean).pop()}</b> : 'the workbook’s folder'}
+          <button type="button" className="link" onClick={onChangeDocumentFolder} disabled={busy}
+            title="Take the documents from another folder instead">Change folder…</button>
+          {listing.documents_folder && (
+            <button type="button" className="link" onClick={onResetDocumentFolder} disabled={busy}>Use the workbook’s folder</button>
+          )}
+        </div>
         {listing.documents.length > 6 && (
           <input type="search" className="filter" placeholder="Filter…" value={filter} aria-label="Filter documents"
             onChange={(e) => setFilter(e.target.value)} />
@@ -144,6 +156,10 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
       </details>
 
       <div className="fill">
+        <label className={`auto-switch${auto ? ' on' : ''}`} title="Changes are applied without asking you; questions are not asked (missing values are left empty and listed)">
+          <input type="checkbox" checked={auto} disabled={busy} onChange={(e) => onAuto(e.target.checked)} />
+          <span>Auto mode <small>{auto ? 'changes are saved without asking' : 'you approve each change'}</small></span>
+        </label>
         <button className="primary wide" disabled={busy || !workbook || documents.length === 0}
           onClick={() => onFill(workbook, documents, notes, chosen)}>
           Fill workbook
