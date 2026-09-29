@@ -41,6 +41,10 @@ def setup_logging() -> None:
     else:  # no console (started as a windowed app): send stray output to the log file too
         sys.stdout = sys.stderr = open(LOG_FILE, "a", encoding="utf-8", buffering=1)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", handlers=handlers)
+    # Libraries: only their errors. Azure's sign-in chatter and one line per HTTP request add nothing;
+    # the job log (excel-filler.job) says what the agent does.
+    logging.getLogger("azure").setLevel(logging.ERROR)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     def excepthook(kind, value, tb):
         log.error("Unexpected error:\n%s", "".join(traceback.format_exception(kind, value, tb)))

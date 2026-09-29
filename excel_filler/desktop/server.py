@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from coding_agent import session
 
 from .. import agent
+from .joblog import JobLog, log as job_log
 from .webui import WebUI
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -33,6 +34,7 @@ class Desktop:
 
     def __init__(self) -> None:
         self.ui = WebUI()
+        self.ui.subscribe(JobLog().on_event)  # what the agent does, in the terminal and the log file
         self.folder: Path | None = None
         self.workbook: str | None = None  # the workbook the person opened, preselected in the window
         # Documents added with the file dialog: relative paths inside the folder, absolute paths for
@@ -186,6 +188,8 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
             raise HTTPException(400, "Choose a folder first.")
         if problem := connection_problem():
             raise HTTPException(400, problem)
+        job_log.info("Fill %s from %d document(s)%s", body.workbook, len(body.documents),
+                     " with instructions" if body.notes.strip() else "")
         desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes))
         return {"started": True}
 
@@ -193,6 +197,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     def follow_up(body: TextIn):
         if desktop.folder is None or not body.text.strip():
             raise HTTPException(400, "Nothing to send.")
+        job_log.info("Follow-up request")
         desktop.run(lambda: session.send(body.text.strip()))
         return {"started": True}
 
@@ -200,10 +205,12 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     def answer(body: AnswerIn):
         if not desktop.ui.answer(body.id, body.value or ""):
             raise HTTPException(404, "No such question.")
+        job_log.info("You answered: %s", {"yes": "approved", "no": "rejected"}.get(body.value or "", "(text reply)" if body.value else "(no answer)"))
         return {"ok": True}
 
     @app.post("/api/stop", dependencies=guarded)
     def stop():
+        job_log.info("You pressed Stop")
         session.stop()
         desktop.ui.cancel_questions()
         return {"ok": True}

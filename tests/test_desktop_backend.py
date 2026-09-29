@@ -190,3 +190,37 @@ def test_add_documents_from_subfolders_and_other_folders(client, folder, tmp_pat
     (other / "notes.docx").write_bytes(b"x")
     r = client.post("/api/documents", json={"paths": [str(other / "notes.docx")]})
     assert r.status_code == 400 and "notes.docx" in r.json()["detail"]
+
+
+def test_the_job_log_says_what_the_agent_does(client, folder, monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger="excel-filler.job")
+    fake = FakeClaude([
+        ([("text", "Reading the workbook first."), ("read_excel", {"path": "costs.xlsx"})], "tool_use"),
+        ([("read_pdf", {"path": "invoice.pdf", "pages": "1"})], "tool_use"),
+        ([("edit_excel", {"path": "costs.xlsx", "changes": [{"sheet": "Costs", "cell": "A2", "value": "Sensors"}]})], "tool_use"),
+        ([("text", "Filled A2 from invoice.pdf page 1.")], "end_turn"),
+    ])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    client.post("/api/folder", json={"path": str(folder)})
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]})
+        while True:
+            event = ws.receive_json()
+            if event["type"] == "confirm":
+                client.post("/api/answer", json={"id": event["id"], "value": "yes"})
+            if event["type"] == "busy" and event["busy"] is False:
+                break
+    lines = [r.getMessage() for r in caplog.records if r.name == "excel-filler.job"]
+    expected = ["Fill costs.xlsx from 1 document(s)", "Job started", "Claude: Reading the workbook first.",
+                "Claude reads the workbook costs.xlsx", "Claude reads invoice.pdf (page 1)",
+                "Claude prepares changes to costs.xlsx", "Question: Apply these cell changes to costs.xlsx?",
+                "You answered: approved", "Done: Modified costs.xlsx (1 cell(s))", "Claude: Filled A2 from invoice.pdf page 1."]
+    positions = []
+    for line in expected:
+        found = [i for i, l in enumerate(lines) if line in l]
+        assert found, (line, lines)
+        positions.append(found[0])
+    assert positions == sorted(positions), lines  # in the order it happened
+    assert any(l.startswith("Job finished in") for l in lines)
