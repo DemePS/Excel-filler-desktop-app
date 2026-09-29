@@ -129,10 +129,12 @@ export default function App() {
       <header>
         <div className="brand"><span className="logo" aria-hidden /> Excel filler</div>
         <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
-        <span className={`claude-status ${claude.state}`}
-          title={claude.state === 'checking' ? 'Waiting for a first answer from Claude. If a Microsoft sign-in page opened in your browser, finish signing in there.' : claude.message}>
-          {claude.state === 'checking' ? 'Checking Claude…' : claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
-        </span>
+        {/* Nothing while the startup check runs: only its result (connected, or an error). */}
+        {claude.state !== 'checking' && (
+          <span className={`claude-status ${claude.state}`} title={claude.message}>
+            {claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
+          </span>
+        )}
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy}>
           {listing.folder ? 'Open another workbook…' : 'Open workbook…'}
         </button>
