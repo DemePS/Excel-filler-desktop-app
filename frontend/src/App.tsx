@@ -5,7 +5,8 @@ import { JobPanel } from './components/JobPanel'
 import { QuestionDialog } from './components/QuestionDialog'
 import { Splitter, useSidebarWidth } from './components/Splitter'
 import { answered, apply, initialState, type State } from './state'
-import type { AgentEvent, Hello, Listing } from './types'
+import type { Access, AgentEvent, Hello, Listing } from './types'
+import { AccessScreen } from './components/AccessScreen'
 
 type Action = { kind: 'event'; event: AgentEvent } | { kind: 'hello'; hello: Hello } | { kind: 'reset' } | { kind: 'you'; text: string }
 
@@ -27,6 +28,19 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [followUp, setFollowUp] = useState('')
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth()
+  // Signed in and allowed to use Excel filler? Checked once at startup, before anything else.
+  const [access, setAccess] = useState<Access | null>(null)
+  const [accessChecking, setAccessChecking] = useState(false)
+  const checkAccess = useCallback(async (retry = false) => {
+    setAccessChecking(true)
+    try {
+      setAccess(await api.access(retry))
+    } catch (e) {
+      setAccess({ state: 'unreachable', ok: false, user: null, message: (e as Error).message })
+    } finally {
+      setAccessChecking(false)
+    }
+  }, [])
   const [claude, setClaude] = useState<{ state: 'checking' | 'ok' | 'failed'; message: string }>({ state: 'checking', message: '' })
 
   const checkConnection = useCallback(async () => {
@@ -38,7 +52,8 @@ export default function App() {
       setClaude({ state: 'failed', message: (e as Error).message })
     }
   }, [])
-  useEffect(() => { if (connected) checkConnection() }, [connected, checkConnection])
+  useEffect(() => { if (connected && access === null && !accessChecking) checkAccess() }, [connected, access, accessChecking, checkAccess])
+  useEffect(() => { if (connected && access?.ok) checkConnection() }, [connected, access?.ok, checkConnection])
 
   useEffect(() => {
     let ws: WebSocket | null = null
@@ -52,6 +67,7 @@ export default function App() {
             dispatch({ kind: 'hello', hello: event as Hello })
           } else {
             // Claude is answering: it is reachable, whatever the startup check says (or has not said yet).
+            if (event.type === 'access') setAccess(event as Access)  // refused during a job
             if (['assistant_start', 'text', 'thinking', 'tool'].includes(event.type)) {
               setClaude((c) => (c.state === 'ok' ? c : { state: 'ok', message: 'Claude answered' }))
             }
@@ -122,11 +138,17 @@ export default function App() {
   const awaitingReply = !busy && !question && lastClaude?.kind === 'claude' && lastClaude.text.trim().endsWith('?')
   const reply = useRef<HTMLInputElement>(null)
   useEffect(() => { if (awaitingReply) reply.current?.focus() }, [awaitingReply])
+
+  // Nothing else until the person is signed in and allowed (hooks above run either way).
+  if (!access?.ok) {
+    return <AccessScreen access={access} checking={accessChecking || access === null} onRetry={() => checkAccess(true)} />
+  }
   return (
     <div className="app">
       <header>
         <div className="brand"><span className="logo" aria-hidden /> Excel filler</div>
         <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
+        {access.user && <span className="user" title="Signed in">{access.user}</span>}
         <span className={`claude-status ${claude.state}`}
           title={claude.state === 'checking' ? 'Waiting for a first answer from Claude. If a Microsoft sign-in page opened in your browser, finish signing in there.' : claude.message}>
           {claude.state === 'checking' ? 'Checking Claude…' : claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}

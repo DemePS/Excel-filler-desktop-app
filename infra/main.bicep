@@ -2,7 +2,8 @@
 //
 // Creates (or reuses) an API Management instance and adds:
 // - the "excel-filler" API: POST /v1/messages (to Claude on Foundry) and GET /settings (the apps'
-//   central settings), with their policies (policies/*.xml);
+//   central settings), with their policies (policies/*.xml; api.xml checks the sign-in token and its
+//   Excel.Filler.User role on Claude calls -- the role is already in the token: no extra lookup);
 // - named values: what IT changes without touching the PCs (deployment, minimum version, notice,
 //   per-user limits);
 // - the backend (the Foundry endpoint) and the gateway identity's access to the Foundry resource;
@@ -143,6 +144,17 @@ resource api 'Microsoft.ApiManagement/service/apis@2024-05-01' = {
   }
 }
 
+// Claude calls (<base />): the sign-in token, its Excel.Filler.User role, per-user limits.
+resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-05-01' = {
+  parent: api
+  name: 'policy'
+  properties: {
+    format: 'rawxml'
+    value: loadTextContent('policies/api.xml')
+  }
+  dependsOn: [values]
+}
+
 resource messages 'Microsoft.ApiManagement/service/apis/operations@2024-05-01' = {
   parent: api
   name: 'messages'
@@ -160,7 +172,7 @@ resource messagesPolicy 'Microsoft.ApiManagement/service/apis/operations/policie
     format: 'rawxml'
     value: loadTextContent('policies/messages.xml')
   }
-  dependsOn: [values, backend]
+  dependsOn: [apiPolicy, backend]
 }
 
 resource settings 'Microsoft.ApiManagement/service/apis/operations@2024-05-01' = {

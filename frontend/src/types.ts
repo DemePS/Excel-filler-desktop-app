@@ -13,6 +13,7 @@ export type AgentEvent =
   | { type: 'assistant_start' | 'assistant_end' | 'thinking' }
   | { type: 'text'; text: string }
   | { type: 'request'; text: string }
+  | ({ type: 'access' } & Access)
   | { type: 'saved'; name: string; path: string; backups: string }
   | { type: 'tool'; name: string }
   | { type: 'tool_detail'; text: string }
@@ -42,3 +43,6 @@ export type Item =
 export type Question =
   | { kind: 'confirm'; id: string; question: string; choices: string[]; context: Item | null }
   | { kind: 'ask'; id: string; prompt: string; multiline: boolean; context: string | null }
+
+// Is the signed-in person an authorized Excel filler user? (checked once at startup)
+export type Access = { state: 'allowed' | 'denied' | 'signin_failed' | 'unreachable' | 'not_required'; ok: boolean; user: string | null; message: string }

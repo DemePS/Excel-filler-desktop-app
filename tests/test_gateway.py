@@ -108,3 +108,117 @@ def test_the_app_name_and_version_go_with_every_request(tmp_path, monkeypatch):
     gateway.configure(tmp_path)
     gateway.apply_headers()
     assert config.CLIENT_HEADERS == {"x-app-name": "excel-filler", "x-app-version": "0.1.0"}
+
+
+# --- Access: is the signed-in person an authorized Excel filler user? (decided by Entra ID)
+
+def token_for(name, roles=None):
+    import base64
+    claims = {"name": name, **({"roles": roles} if roles is not None else {})}
+    payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
+    return f"header.{payload}.signature"
+
+
+@pytest.fixture
+def organization(tmp_path, monkeypatch):
+    """The downloadable app: the organization's app registration is set."""
+    monkeypatch.setenv("EXCEL_FILLER_CLIENT_ID", "desktop-app")
+    monkeypatch.setenv("EXCEL_FILLER_API_SCOPE", "api://excel-filler/.default")
+    gateway.configure(tmp_path)
+    return monkeypatch
+
+
+def sign_in_as(monkeypatch, token=None, error=None):
+    from coding_agent import signin
+    scopes = []
+
+    def access_token(scope=None):
+        scopes.append(scope)
+        if error:
+            raise error
+        return token
+    monkeypatch.setattr(signin, "access_token", access_token)
+    return scopes
+
+
+def test_a_member_of_the_group_is_allowed(organization):
+    import os
+    scopes = sign_in_as(organization, token_for("Ada Lovelace", ["Excel.Filler.User"]))
+    access = gateway.check_access()
+    assert (access.state, access.user, access.ok) == ("allowed", "Ada Lovelace", True)
+    assert scopes == ["api://excel-filler/.default"]  # a token for the organization's registration
+    assert os.environ["ANTHROPIC_FOUNDRY_CLIENT_ID"] == "desktop-app"  # the sign-in uses it, gateway or not
+
+
+def test_a_token_without_the_role_is_refused(organization):
+    sign_in_as(organization, token_for("Bob", []))
+    access = gateway.check_access()
+    assert (access.state, access.user) == ("denied", "Bob") and "Excel filler users group" in access.message
+
+
+def test_a_person_not_assigned_is_refused_by_entra_id(organization):
+    from azure.core.exceptions import ClientAuthenticationError
+    sign_in_as(organization, error=ClientAuthenticationError(
+        "AADSTS50105: Your administrator has configured the application to block users unless they are "
+        "specifically granted ('assigned') access to the application."))
+    access = gateway.check_access()
+    assert access.state == "denied" and "not assigned to Excel filler" in access.message
+
+
+def test_a_failed_sign_in_is_reported(organization):
+    from azure.core.exceptions import ClientAuthenticationError
+    sign_in_as(organization, error=ClientAuthenticationError("User cancelled"))
+    access = gateway.check_access()
+    assert access.state == "signin_failed" and "User cancelled" in access.message
+
+
+def test_developers_have_no_access_check(tmp_path, monkeypatch):
+    gateway.configure(tmp_path)  # no organization app registration, no gateway
+    scopes = sign_in_as(monkeypatch, token_for("Dev"))
+    assert gateway.check_access().state == "not_required" and gateway.check_access().ok
+    assert scopes == []  # no sign-in for a check: Foundry is called with your own credential
+
+
+def test_the_window_waits_for_access_before_any_job(tmp_path, organization):
+    from excel_filler.desktop.server import create_app
+    results = [gateway.Access("denied", "Ada Lovelace", "Ask IT."), gateway.Access("allowed", "Ada Lovelace")]
+    calls = []
+    organization.setattr(gateway, "check_access", lambda: calls.append(1) or results[len(calls) - 1])
+    organization.setenv("ANTHROPIC_FOUNDRY_ENDPOINT", "https://res.services.ai.azure.com/anthropic")
+    client = TestClient(create_app("t"), headers={"x-token": "t"})
+    (tmp_path / "job").mkdir()
+    client.post("/api/folder", json={"path": str(tmp_path / "job")})
+    assert client.post("/api/job", json={"workbook": "x.xlsx", "documents": []}).status_code == 403  # not checked yet
+    assert client.get("/api/access").json() == {"state": "denied", "ok": False, "user": "Ada Lovelace", "message": "Ask IT."}
+    assert client.get("/api/access").json()["state"] == "denied" and len(calls) == 1  # checked once
+    r = client.post("/api/job", json={"workbook": "x.xlsx", "documents": []})
+    assert r.status_code == 403 and r.json()["detail"] == "Ask IT."
+    assert client.get("/api/access?retry=true").json()["state"] == "allowed" and len(calls) == 2
+
+
+def test_a_refusal_by_the_gateway_during_a_job_closes_access(tmp_path, organization):
+    from excel_filler.desktop.server import Desktop, create_app
+    organization.setenv("EXCEL_FILLER_GATEWAY", URL)
+    serve(organization, {"deployment": "claude-x"})
+    gateway.configure(tmp_path)
+    organization.setattr(gateway, "check_access", lambda: gateway.Access("allowed", "Ada Lovelace"))
+    desktop = Desktop()
+    client = TestClient(create_app("t", desktop), headers={"x-token": "t"})
+    assert client.get("/api/access").json()["ok"] is True
+    with client.websocket_connect("/ws?token=t") as ws:
+        ws.receive_json()
+        desktop.ui.error("Access denied by https://apim.example/excel-filler (HTTP 403): you are signed in, but ...")
+        events = {ws.receive_json()["type"]: None for _ in range(2)}
+    assert set(events) == {"error", "access"}
+    assert client.get("/api/access").json()["state"] == "denied"
+
+
+def test_the_organization_settings_are_built_in(tmp_path, monkeypatch):
+    import os
+    file = tmp_path / "organization.json"
+    file.write_text(json.dumps({"gateway": URL, "api_scope": "api://gw/.default", "client_id": "desktop", "tenant_id": ""}))
+    monkeypatch.setenv("EXCEL_FILLER_CLIENT_ID", "set-by-it")
+    gateway.organization_defaults(file)
+    assert os.environ["EXCEL_FILLER_GATEWAY"] == URL and os.environ["EXCEL_FILLER_API_SCOPE"] == "api://gw/.default"
+    assert os.environ["EXCEL_FILLER_CLIENT_ID"] == "set-by-it"  # the environment wins
+    assert "EXCEL_FILLER_TENANT_ID" not in os.environ  # empty: not set

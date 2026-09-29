@@ -1,4 +1,4 @@
-import type { Listing } from './types'
+import type { Access, Listing } from './types'
 
 // Talking to the local backend. Every request carries the per-launch token from the page URL.
 
@@ -26,6 +26,7 @@ export const api = {
   stop: () => call('/api/stop', {}),
   openInExcel: (name: string) => call('/api/open', { text: name }),
   check: () => call<{ ok: boolean; message: string }>('/api/check'),
+  access: (retry = false) => call<Access>(`/api/access${retry ? '?retry=true' : ''}`),
 }
 
 // Sends an error of the window's code to the backend, which writes it to the log file.

@@ -48,6 +48,9 @@ class Desktop:
         self.extra_documents: set[str] = set()
         self.busy = False
         self.lock = threading.Lock()
+        # Checked once at startup (GET /api/access); a refusal by the gateway later updates it.
+        self.access: gateway.Access | None = None
+        self.access_lock = threading.Lock()
 
     def listing(self) -> dict:
         if self.folder is None:
@@ -194,6 +197,38 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         return {**desktop.listing(), "busy": desktop.busy, "connection_problem": connection_problem(), "notice": gateway.current().notice,
                 "pending": desktop.ui.pending_questions()}
 
+    def refuse_without_access() -> None:
+        if gateway.access_required() and not (desktop.access and desktop.access.ok):
+            raise HTTPException(403, desktop.access.message if desktop.access and desktop.access.message
+                                else "Your access to Excel filler has not been confirmed yet.")
+
+    def on_refusal(event: dict) -> None:
+        # A call refused by the gateway during a job (the person was removed from the group).
+        if event.get("type") == "error" and gateway.current().url and "(HTTP 403)" in str(event.get("text", "")):
+            user = desktop.access.user if desktop.access else None
+            desktop.access = gateway.Access("denied", user, "Your account is no longer allowed to use Excel filler. "
+                                            "Ask IT if this is a mistake.")
+            job_log.warning("Access: denied during a job (%s)", user or "unknown user")
+            desktop.ui.emit({"type": "access", "state": "denied", "ok": False, "user": user,
+                             "message": desktop.access.message})
+
+    desktop.ui.subscribe(on_refusal)
+
+    @app.get("/api/access", dependencies=guarded)
+    def get_access(retry: bool = False):
+        """Is the signed-in person an authorized Excel filler user? Decided by Entra ID at sign-in
+        (checked once, signing in if needed); retry=true checks again (e.g. after IT added the person
+        to the group)."""
+        with desktop.access_lock:
+            if desktop.access is None or retry:
+                result = gateway.check_access()
+                desktop.access = result
+                (job_log.info if result.ok else job_log.warning)(
+                    "Access: %s%s%s", result.state, f" ({result.user})" if result.user else "",
+                    f" -- {result.message}" if result.message and not result.ok else "")
+            result = desktop.access
+        return {"state": result.state, "ok": result.ok, "user": result.user, "message": result.message}
+
     @app.get("/api/check", dependencies=guarded)
     def check():
         """Can the app reach Claude? A 1-token call; the window shows the answer at startup."""
@@ -290,6 +325,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
             raise HTTPException(400, "Choose a folder first.")
         if problem := connection_problem():
             raise HTTPException(400, problem)
+        refuse_without_access()
         job_log.info("Fill %s from %d document(s)%s", body.workbook, len(body.documents),
                      " with instructions" if body.notes.strip() else "")
         desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes),
@@ -300,6 +336,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     def follow_up(body: TextIn):
         if desktop.folder is None or not body.text.strip():
             raise HTTPException(400, "Nothing to send.")
+        refuse_without_access()
         job_log.info("Follow-up request")
         desktop.run(lambda: session.send(body.text.strip()), body.text.strip())
         return {"started": True}
