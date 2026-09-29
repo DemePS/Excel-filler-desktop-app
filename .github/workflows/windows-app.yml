@@ -12,6 +12,16 @@
 #   EXCEL_FILLER_CLIENT_ID  the desktop app registration's application (client) ID
 #   EXCEL_FILLER_TENANT_ID  the organization's tenant ID
 # Without them the build is a developer build (no access check, Foundry called directly).
+#
+# Code signing (Azure Trusted Signing; see docs/code-signing.md), also Actions variables:
+#   SIGNING_ENDPOINT          https://<region>.codesigning.azure.net/
+#   SIGNING_ACCOUNT           the Trusted Signing account name
+#   SIGNING_PROFILE           its certificate profile name
+#   SIGNING_CLIENT_ID         the app registration this workflow signs in as (federated credential:
+#   SIGNING_TENANT_ID         no secret stored in GitHub), with the role "Trusted Signing
+#   SIGNING_SUBSCRIPTION_ID   Certificate Profile Signer" on the certificate profile
+# Without them builds are unsigned, and a release (tag) is refused unless ALLOW_UNSIGNED_RELEASE is
+# "true" (e.g. for a pilot distributed through Intune).
 
 name: Windows app
 
@@ -23,6 +33,7 @@ on:
 
 permissions:
   contents: write # the release
+  id-token: write # signing in to Azure for code signing, without a stored secret
 
 jobs:
   build:
@@ -76,6 +87,47 @@ jobs:
       - name: Build ExcelFiller.exe
         run: uv run --python 3.12 --group build pyinstaller --noconfirm --distpath dist --workpath build packaging/excel-filler.spec
 
+      - name: Sign in to Azure (code signing)
+        if: vars.SIGNING_ACCOUNT != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.SIGNING_CLIENT_ID }}
+          tenant-id: ${{ vars.SIGNING_TENANT_ID }}
+          subscription-id: ${{ vars.SIGNING_SUBSCRIPTION_ID }}
+
+      - name: Sign ExcelFiller.exe
+        if: vars.SIGNING_ACCOUNT != ''
+        uses: azure/trusted-signing-action@v0
+        with:
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files-folder: dist/ExcelFiller
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Signature
+        id: signature
+        env:
+          SIGNING_CONFIGURED: ${{ vars.SIGNING_ACCOUNT != '' }}
+          ALLOW_UNSIGNED_RELEASE: ${{ vars.ALLOW_UNSIGNED_RELEASE }}
+        run: |
+          $signature = Get-AuthenticodeSignature dist\ExcelFiller\ExcelFiller.exe
+          "Signature: $($signature.Status) $($signature.SignerCertificate.Subject)"
+          $signed = $signature.Status -eq "Valid"
+          "signed=$($signed.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          if ($env:SIGNING_CONFIGURED -eq "true" -and -not $signed) {
+            Write-Error "Signing is configured but ExcelFiller.exe is not validly signed ($($signature.Status))."; exit 1
+          }
+          if (-not $signed) {
+            "::warning::Unsigned build: Windows SmartScreen will warn when a downloaded copy is started. See docs/code-signing.md."
+            if ($env:GITHUB_REF_TYPE -eq "tag" -and $env:ALLOW_UNSIGNED_RELEASE -ne "true") {
+              Write-Error "A release must be signed (or set the Actions variable ALLOW_UNSIGNED_RELEASE to true)."; exit 1
+            }
+          }
+
       - name: Self-test of the built app
         run: |
           $log = Join-Path $env:USERPROFILE ".coding-agent\logs\excel-filler-desktop.log"
@@ -115,3 +167,5 @@ jobs:
             1. Download ExcelFiller-${{ steps.version.outputs.version }}-windows.zip and extract it (for example to your Documents folder).
             2. Open the ExcelFiller folder and start ExcelFiller.exe.
             3. Sign in with your work account if asked. Excel filler is available to members of the Excel filler users group.
+
+            ${{ steps.signature.outputs.signed != 'true' && 'This build is not signed: if Windows says "Windows protected your PC", choose More info, then Run anyway.' || '' }}
