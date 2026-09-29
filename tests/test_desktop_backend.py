@@ -150,3 +150,13 @@ def test_the_launcher_imports_without_a_console(tmp_path):
             "open(sys.argv[1], 'w').write('ok')")
     subprocess.run([sys.executable, "-c", code, str(marker)], check=True)
     assert marker.read_text() == "ok"
+
+
+def test_the_window_api_exposes_only_its_methods():
+    """pywebview publishes every public attribute to the page; the native window must stay private."""
+    from excel_filler.desktop.app import WindowApi
+    api = WindowApi()
+    api._window = object()
+    public = [name for name in vars(api) if not name.startswith("_")]
+    assert public == []
+    assert callable(api.pick_folder)

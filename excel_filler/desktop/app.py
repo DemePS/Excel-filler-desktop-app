@@ -55,15 +55,20 @@ def free_port() -> int:
 
 
 class WindowApi:
-    """Functions the web page can call through pywebview (window.pywebview.api.*)."""
+    """Functions the web page can call through pywebview (window.pywebview.api.*).
+
+    pywebview exposes every public attribute of this object to the page, walking into it
+    recursively; keep the window (a native .NET object) private, or it walks the whole native
+    window and fails ("maximum recursion depth", "only accessed from the UI thread").
+    """
 
     def __init__(self) -> None:
-        self.window = None
+        self._window = None
 
     def pick_folder(self) -> str | None:
         import webview
         kind = webview.FileDialog.FOLDER if hasattr(webview, "FileDialog") else webview.FOLDER_DIALOG
-        result = self.window.create_file_dialog(kind)
+        result = self._window.create_file_dialog(kind)
         return result[0] if result else None
 
 
@@ -80,7 +85,7 @@ def run_in_browser(url: str) -> None:
 def run_in_window(url: str) -> None:
     import webview
     api = WindowApi()
-    api.window = webview.create_window("Excel filler", url, js_api=api, width=1280, height=820, min_size=(900, 600))
+    api._window = webview.create_window("Excel filler", url, js_api=api, width=1280, height=820, min_size=(900, 600))
     webview.start()
 
 
