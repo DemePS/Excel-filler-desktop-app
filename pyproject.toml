@@ -1,30 +1,37 @@
 [project]
 name = "excel-filler-desktop-app"
 version = "0.1.0"
-description = "Desktop application for the coding agent (Claude on Azure / Microsoft Foundry): fills Excel workbooks from PDFs, edits code, with diff approvals"
+description = "Fill Excel workbooks from PDF documents with Claude (Azure / Microsoft Foundry), reviewing every change"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "anthropic>=0.71.0,<1",   # Claude API (AnthropicFoundry client)
-    "azure-identity>=1.25.3", # Azure AD sign-in when no API key is set
-    "httpx>=0.28.1",          # download_file
-    "python-dotenv>=1.1.1",   # reads .env
-    "openpyxl>=3.1.5",        # read_excel / edit_excel
-    "pypdf>=6.19.0",          # read_pdf (page ranges, text mode)
+    # Exact versions: the ones tested together (uv.lock pins their own dependencies too). To
+    # upgrade, change a version here, run `uv lock`, and run the tests (see README).
+    # The agent engine: loop, tools, safety rules, memory -- a commit of the coding agent.
+    "codeagent @ git+https://github.com/DemePS/CodeAgent.git@5c743ff53f360f3b179e0c4eea57b1115e833490",
+    "fastapi==0.141.1",   # the desktop window's local backend
+    "uvicorn==0.54.0",
+    "websockets==16.1.1", # uvicorn's WebSocket support (the window's live events)
+    "pywebview==6.2.1",   # the native window (WebView2 on Windows, WebKit on macOS)
 ]
 
-[project.optional-dependencies]
-# screenshot_page: uses the installed Edge/Chrome, or `uv run playwright install chromium`
-browser = ["playwright>=1.49"]
-
 [project.scripts]
-coding-agent = "agent:main"
+excel-filler = "excel_filler.cli:main"
+# A console command for now, so errors are visible (they also go to the log file). The Windows
+# installer will start the window without a console.
+excel-filler-desktop = "excel_filler.desktop.app:main"
+
+[dependency-groups]
+dev = ["pytest==9.1.1"]
 
 [build-system]
-requires = ["hatchling>=1.26"]
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true  # the git dependency above
+
 [tool.hatch.build.targets.wheel]
-# A single-module project for now; `uv sync` installs it in editable mode, so agent.py keeps
-# finding its skills/ folder next to it.
-only-include = ["agent.py"]
+packages = ["excel_filler"]
+# The React UI is built into excel_filler/desktop/static (npm run build in frontend/).
+artifacts = ["excel_filler/desktop/static/**"]
