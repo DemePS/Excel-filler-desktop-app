@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import type { Access, Listing } from './types'
-=======
-import type { Listing, Sheet } from './types'
->>>>>>> claude/excel-filler-app
+import type { Access, Listing, Sheet } from './types'
 
 // Talking to the local backend. Every request carries the per-launch token from the page URL.
 

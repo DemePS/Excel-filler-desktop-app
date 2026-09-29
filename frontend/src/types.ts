@@ -44,10 +44,7 @@ export type Question =
   | { kind: 'confirm'; id: string; question: string; choices: string[]; context: Item | null }
   | { kind: 'ask'; id: string; prompt: string; multiline: boolean; context: string | null }
 
-<<<<<<< HEAD
 // Is the signed-in person an authorized Excel filler user? (checked once at startup)
 export type Access = { state: 'allowed' | 'denied' | 'signin_failed' | 'unreachable' | 'not_required'; ok: boolean; user: string | null; message: string }
-=======
 // A sheet of the workbook, with its size (for choosing the sheets to fill).
 export type Sheet = { name: string; rows: number; cols: number }
->>>>>>> claude/excel-filler-app
