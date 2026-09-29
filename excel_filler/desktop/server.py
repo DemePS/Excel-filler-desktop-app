@@ -127,6 +127,7 @@ class JobIn(BaseModel):
     workbook: str
     documents: list[str] = []
     notes: str = ""
+    sheets: list[str] = []  # the sheets to fill; none: Claude finds them
 
 
 class TextIn(BaseModel):
@@ -152,10 +153,12 @@ def to_json(event: dict) -> str:
     return json.dumps(event, default=str)
 
 
-def job_request(workbook: str, documents: list[str], notes: str) -> str:
-    """Your request in plain words: "Fill costs.xlsx from invoice.pdf and scan.pdf"."""
+def job_request(workbook: str, documents: list[str], notes: str, sheets: list[str] | None = None) -> str:
+    """Your request in plain words: "Fill costs.xlsx (sheet Costs) from invoice.pdf and scan.pdf"."""
     names = [Path(d).name for d in documents]
     listed = ", ".join(names[:-1]) + f" and {names[-1]}" if len(names) > 1 else "".join(names)
+    if sheets:
+        workbook += f" ({'sheet' if len(sheets) == 1 else 'sheets'} {', '.join(sheets)})"
     return f"Fill {workbook}" + (f" from {listed}" if listed else "") + (f"\n{notes.strip()}" if notes.strip() else "")
 
 
@@ -307,6 +310,22 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         desktop.ui.emit({"type": "listing", **desktop.listing()})
         return {**desktop.listing(), "added": added}
 
+    @app.get("/api/sheets", dependencies=guarded)
+    def sheets(workbook: str):
+        """The sheets of a workbook of the folder, with their sizes (for choosing the ones to fill)."""
+        if desktop.folder is None or workbook not in desktop.listing()["workbooks"]:
+            raise HTTPException(400, "Only a workbook of the open folder.")
+        import openpyxl
+        try:
+            wb = openpyxl.load_workbook(desktop.folder / workbook, read_only=True)
+        except Exception as e:  # locked, damaged...
+            raise HTTPException(400, f"Could not read {workbook}: {e}")
+        try:
+            return {"sheets": [{"name": ws.title, "rows": ws.max_row or 0, "cols": ws.max_column or 0}
+                               for ws in wb.worksheets]}
+        finally:
+            wb.close()
+
     @app.post("/api/open", dependencies=guarded)
     def open_workbook_in_excel(body: TextIn):
         """Open a workbook of the folder in Excel (only a workbook listed in the folder)."""
@@ -328,8 +347,8 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         refuse_without_access()
         job_log.info("Fill %s from %d document(s)%s", body.workbook, len(body.documents),
                      " with instructions" if body.notes.strip() else "")
-        desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes),
-                    job_request(body.workbook, body.documents, body.notes))
+        desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes, body.sheets),
+                    job_request(body.workbook, body.documents, body.notes, body.sheets))
         return {"started": True}
 
     @app.post("/api/followup", dependencies=guarded)

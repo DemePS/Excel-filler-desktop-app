@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from coding_agent import session
+from coding_agent import state, session
 from coding_agent.ui import UI
 
 # Only what filling a workbook needs: look around the folder, read documents, read and write the
@@ -19,7 +19,10 @@ Some documents may be in other folders (listed with absolute paths, announced in
 never anything in those folders.
 
 Work from the workbook to the documents, in this order:
-1. Open the workbook with read_excel before any document. Work out exactly what is needed:
+1. Open the workbook with read_excel before any document. With several sheets you first get an
+   overview (each sheet's size and first rows): then read only the sheet(s) to fill, and a lookup
+   sheet only if a value depends on it; when the sheets to fill are given, stick to them.
+   Work out exactly what is needed:
    which cells or columns must be filled, their headers and labels, units and number formats,
    which cells are formulas (never overwrite a formula unless asked), and what one row holds.
 2. Write down the list of fields you need (e.g. "per line item: description, quantity, unit
@@ -47,15 +50,26 @@ def open_folder(folder: str | Path, ui: UI, resume: bool = False) -> Path:
     return session.open_project(folder, ui=ui, tools=TOOLS, system_prompt=SYSTEM_PROMPT, resume=resume)
 
 
-def job_instruction(workbook: str, documents: list[str], notes: str = "") -> str:
+def job_instruction(workbook: str, documents: list[str], notes: str = "", sheets: list[str] | None = None) -> str:
     """The instruction for one filling job, as Claude receives it."""
     docs = "\n".join(f"- {d}" for d in documents) if documents else "- (the documents in this folder)"
     text = f"Fill the Excel workbook {workbook} using these documents:\n{docs}"
+    if sheets:
+        names = ", ".join(repr(s) for s in sheets)
+        text += (f"\n\nSheets to fill: {names} (chosen by the person; only these can be changed). Read them with "
+                 f"read_excel(sheet=...); do not read the other sheets unless a value depends on them (e.g. a "
+                 f"lookup table).")
     if notes.strip():
         text += f"\n\nInstructions from the person:\n{notes.strip()}"
     return text
 
 
-def fill(workbook: str, documents: list[str], notes: str = "") -> bool:
-    """Run one filling job to completion. False if it failed (the reason was shown in the UI)."""
-    return session.send(job_instruction(workbook, documents, notes))
+def fill(workbook: str, documents: list[str], notes: str = "", sheets: list[str] | None = None) -> bool:
+    """Run one filling job to completion. False if it failed (the reason was shown in the UI).
+    With sheets, only those sheets of the workbook can be changed (also in follow-up requests)."""
+    path = (state.workspace / workbook).resolve()
+    if sheets:
+        state.excel_edit_sheets[path] = set(sheets)
+    else:
+        state.excel_edit_sheets.pop(path, None)
+    return session.send(job_instruction(workbook, documents, notes, sheets))

@@ -97,11 +97,17 @@ button.link { border: none; background: none; text-decoration: underline; margin
 .saved { display: flex; align-items: center; gap: 12px; justify-content: space-between; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; }
 .saved small { display: block; color: var(--muted); font-size: 0.82em; overflow-wrap: anywhere; }
 .saved button { flex-shrink: 0; }
+<<<<<<< HEAD
 .access-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
 .access-card { max-width: 520px; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px; line-height: 1.5; }
 .access-card h1 { font-size: 1.25em; margin: 18px 0 8px; display: flex; align-items: center; gap: 10px; }
 .access-card .primary { margin-top: 12px; }
 .user { font-size: 0.85em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+=======
+.sheets { display: flex; flex-direction: column; gap: 2px; max-height: 160px; overflow-y: auto; margin-top: 6px; }
+.sheets small { font-size: 0.8em; margin-left: 4px; }
+.hint { font-size: 0.82em; margin: 4px 0 0; }
+>>>>>>> claude/excel-filler-app
 .step-failed { margin: 2px 0 0 14px; color: var(--warn); font-size: 0.9em; }
 .crash { max-width: 640px; margin: 80px auto; padding: 24px; line-height: 1.5; }
 .crash pre { white-space: pre-wrap; background: var(--danger-soft); color: var(--danger); padding: 10px; border-radius: 8px; }

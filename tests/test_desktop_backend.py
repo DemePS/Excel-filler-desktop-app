@@ -351,3 +351,31 @@ def test_a_job_that_changes_nothing_offers_nothing_to_open(client, folder, monke
         while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
             events.append(ws.receive_json())
     assert not [e for e in events if e["type"] == "saved"]
+
+
+def test_sheets_to_fill_are_listed_and_enforced(client, folder, monkeypatch):
+    wb = openpyxl.load_workbook(folder / "costs.xlsx")
+    wb.create_sheet("Data").append(["code", "label"])
+    wb.save(folder / "costs.xlsx")
+    fake = FakeClaude([
+        ([("edit_excel", {"path": "costs.xlsx", "changes": [{"sheet": "Data", "cell": "A2", "value": "x"}]})], "tool_use"),
+        ([("text", "Only Costs can be filled.")], "end_turn"),
+    ])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    client.post("/api/folder", json={"path": str(folder)})
+    assert client.get("/api/sheets", params={"workbook": "costs.xlsx"}).json() == {
+        "sheets": [{"name": "Costs", "rows": 1, "cols": 2}, {"name": "Data", "rows": 1, "cols": 2}]}
+    assert client.get("/api/sheets", params={"workbook": "../x.xlsx"}).status_code == 400
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"], "sheets": ["Costs"]})
+        events = []
+        while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
+            events.append(ws.receive_json())
+    assert events[1] == {"type": "request", "text": "Fill costs.xlsx (sheet Costs) from invoice.pdf"}
+    instruction = fake.requests[0]["messages"][0]["content"]
+    text = instruction if isinstance(instruction, str) else " ".join(b.get("text", "") for b in instruction)
+    assert "Sheets to fill: 'Costs'" in text
+    refused = next(e for e in events if e["type"] == "tool_result")
+    assert refused["ok"] is False and "Only these sheets of costs.xlsx may be filled: Costs" in refused["summary"]
+    assert openpyxl.load_workbook(folder / "costs.xlsx")["Data"]["A2"].value is None
