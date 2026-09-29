@@ -423,9 +423,9 @@ wheels = [
 ]
 
 [[package]]
-name = "coding-agent"
+name = "codeagent"
 version = "0.1.0"
-source = { git = "https://github.com/DemePS/CodeAgent.git?rev=1244b8e341e5bbd956aaff5b34eacd958d027b7b#1244b8e341e5bbd956aaff5b34eacd958d027b7b" }
+source = { git = "https://github.com/DemePS/CodeAgent.git?rev=4e21bb1a5cff1c7fb9b3f2ad846ca3815421b597#4e21bb1a5cff1c7fb9b3f2ad846ca3815421b597" }
 dependencies = [
     { name = "anthropic" },
     { name = "azure-identity" },
@@ -534,7 +534,7 @@ name = "excel-filler-desktop-app"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "coding-agent" },
+    { name = "codeagent" },
     { name = "fastapi" },
     { name = "pywebview" },
     { name = "uvicorn" },
@@ -552,7 +552,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "coding-agent", git = "https://github.com/DemePS/CodeAgent.git?rev=1244b8e341e5bbd956aaff5b34eacd958d027b7b" },
+    { name = "codeagent", git = "https://github.com/DemePS/CodeAgent.git?rev=4e21bb1a5cff1c7fb9b3f2ad846ca3815421b597" },
     { name = "fastapi", specifier = "==0.141.1" },
     { name = "pywebview", specifier = "==6.2.1" },
     { name = "uvicorn", specifier = "==0.54.0" },
