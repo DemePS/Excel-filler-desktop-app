@@ -160,7 +160,7 @@ def test_the_window_api_exposes_only_its_methods():
     api._window = object()
     public = [name for name in vars(api) if not name.startswith("_")]
     assert public == []
-    assert callable(api.pick_workbook) and callable(api.pick_documents)
+    assert callable(api.pick_workbook) and callable(api.pick_documents) and callable(api.pick_document_folder)
 
 
 def test_open_workbook_opens_its_folder_with_it_selected(client, folder):
@@ -279,3 +279,34 @@ def test_job_request_in_plain_words():
     assert job_request("costs.xlsx", ["a.pdf", "/x/y/b.pdf", "c.png"], " excl. VAT ") == \
         "Fill costs.xlsx from a.pdf, b.pdf and c.png\nexcl. VAT"
     assert job_request("costs.xlsx", ["a.pdf"], "") == "Fill costs.xlsx from a.pdf"
+
+
+def test_choose_a_documents_folder_elsewhere(client, folder, tmp_path):
+    from coding_agent import state
+    elsewhere = tmp_path / "scans" / "2026"
+    elsewhere.mkdir(parents=True)
+    make_pdf(elsewhere / "b.pdf", ["B"])
+    make_pdf(elsewhere / "a.pdf", ["A"])
+    (elsewhere / "notes.txt").write_text("not a document to fill from")
+    (elsewhere / "sub").mkdir()
+    make_pdf(elsewhere / "sub" / "c.pdf", ["C"])
+    client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    r = client.post("/api/document-folder", json={"path": str(elsewhere)})
+    assert r.status_code == 200, r.text
+    expected = [(elsewhere / "a.pdf").as_posix(), (elsewhere / "b.pdf").as_posix()]
+    assert r.json()["added"] == expected
+    assert r.json()["documents"] == ["invoice.pdf", *expected]
+    assert elsewhere.resolve() in state.read_roots  # readable, never writable
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    r = client.post("/api/document-folder", json={"path": str(empty)})
+    assert r.status_code == 400 and "No PDF or image" in r.json()["detail"]
+    assert client.post("/api/document-folder", json={"path": str(tmp_path / "nope")}).status_code == 400
+
+
+def test_a_documents_folder_inside_the_workbook_folder_is_relative(client, folder):
+    (folder / "invoices").mkdir()
+    make_pdf(folder / "invoices" / "x.pdf", ["X"])
+    client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
+    r = client.post("/api/document-folder", json={"path": str(folder / "invoices")})
+    assert r.json()["added"] == ["invoices/x.pdf"] and "invoices/x.pdf" in r.json()["documents"]

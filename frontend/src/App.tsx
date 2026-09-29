@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { api, connectEvents, pickDocuments, pickWorkbook } from './api'
+import { api, connectEvents, pickDocumentFolder, pickDocuments, pickWorkbook } from './api'
 import { Activity } from './components/Activity'
 import { JobPanel } from './components/JobPanel'
 import { QuestionDialog } from './components/QuestionDialog'
@@ -85,6 +85,19 @@ export default function App() {
       }
     })
 
+  // Documents from a folder of their own: the job uses those (ticked), not the ones next to the workbook.
+  const [selection, setSelection] = useState<{ documents: string[] } | null>(null)
+  const addDocumentFolder = () =>
+    run(async () => {
+      if (!state.listing.folder) return
+      const path = await pickDocumentFolder(state.listing.folder)
+      if (path) {
+        const result = await api.addDocumentFolder(path)
+        dispatch({ kind: 'event', event: { type: 'listing', folder: result.folder, workbooks: result.workbooks, documents: result.documents, workbook: result.workbook } })
+        setSelection({ documents: result.added })
+      }
+    })
+
   const addDocuments = () =>
     run(async () => {
       if (!state.listing.folder) return
@@ -124,7 +137,7 @@ export default function App() {
       {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>Dismiss</button></div>}
 
       <main>
-        <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments}
+        <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder} selection={selection}
           onFill={(workbook, documents, notes) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes) })} />
         <section className="feed">
           <Activity items={state.items} busy={busy} activity={state.activity} />

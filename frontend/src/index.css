@@ -75,6 +75,8 @@ button.link { border: none; background: none; text-decoration: underline; margin
 .claude-status.failed { color: var(--danger); background: var(--danger-soft); }
 .reply-hint { margin: 0 24px; padding: 6px 12px; border-radius: 8px 8px 0 0; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .composer.awaiting input { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.add-documents { display: flex; gap: 8px; flex-wrap: wrap; }
+.add-documents button { flex: 1; }
 .step-failed { margin: 2px 0 0 14px; color: var(--warn); font-size: 0.9em; }
 .crash { max-width: 640px; margin: 80px auto; padding: 24px; line-height: 1.5; }
 .crash pre { white-space: pre-wrap; background: var(--danger-soft); color: var(--danger); padding: 10px; border-radius: 8px; }

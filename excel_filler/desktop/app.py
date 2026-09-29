@@ -82,6 +82,16 @@ class WindowApi:
             file_types=("Documents (*.pdf;*.png;*.jpg;*.jpeg;*.webp)", "All files (*.*)"))
         return list(result or [])
 
+    def pick_document_folder(self, folder: str) -> str | None:
+        """A folder dialog, for the folder holding the documents (it shows folders only)."""
+        result = self._window.create_file_dialog(folder_dialog(), directory=folder)
+        return (result[0] if isinstance(result, (list, tuple)) else result) or None
+
+
+def folder_dialog():
+    import webview
+    return webview.FileDialog.FOLDER if hasattr(webview, "FileDialog") else webview.FOLDER_DIALOG
+
 
 def open_dialog():
     import webview

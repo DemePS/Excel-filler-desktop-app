@@ -1,3 +1,5 @@
+import type { Listing } from './types'
+
 // Talking to the local backend. Every request carries the per-launch token from the page URL.
 
 const token = new URLSearchParams(window.location.search).get('token') ?? ''
@@ -17,6 +19,7 @@ export const api = {
   openFolder: (path: string) => call('/api/folder', { path }),
   openWorkbook: (path: string) => call('/api/workbook', { path }),
   addDocuments: (paths: string[]) => call('/api/documents', { paths }),
+  addDocumentFolder: (path: string) => call<Listing & { added: string[] }>('/api/document-folder', { path }),
   startJob: (workbook: string, documents: string[], notes: string) => call('/api/job', { workbook, documents, notes }),
   followUp: (text: string) => call('/api/followup', { text }),
   answer: (id: string, value: string | null) => call('/api/answer', { id, value }),
@@ -48,7 +51,13 @@ export function connectEvents(onEvent: (event: unknown) => void, onClose: () => 
 }
 
 // In the desktop window, pywebview exposes the native Windows file dialogs.
-type PyWebview = { api: { pick_workbook: () => Promise<string | null>; pick_documents: (folder: string) => Promise<string[]> } }
+type PyWebview = {
+  api: {
+    pick_workbook: () => Promise<string | null>
+    pick_documents: (folder: string) => Promise<string[]>
+    pick_document_folder: (folder: string) => Promise<string | null>
+  }
+}
 
 const native = () => (window as unknown as { pywebview?: PyWebview }).pywebview
 
@@ -63,4 +72,10 @@ export async function pickDocuments(folder: string): Promise<string[]> {
   if (pywebview) return pywebview.api.pick_documents(folder)
   const answer = window.prompt(`Full paths of the documents, one per line or separated by ";" (they must be in ${folder}):`)
   return answer ? answer.split(/[;\n]/).map((p) => p.trim()).filter(Boolean) : []
+}
+
+export async function pickDocumentFolder(folder: string): Promise<string | null> {
+  const pywebview = native()
+  if (pywebview) return pywebview.api.pick_document_folder(folder)
+  return window.prompt('Full path of the folder holding the documents (PDFs, images):')
 }

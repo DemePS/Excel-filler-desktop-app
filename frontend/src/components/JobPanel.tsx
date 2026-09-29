@@ -8,6 +8,8 @@ type Props = {
   busy: boolean
   onFill: (workbook: string, documents: string[], notes: string) => void
   onAddDocuments: () => void
+  onAddDocumentFolder: () => void
+  selection: { documents: string[] } | null // documents to tick instead of the current ones
 }
 
 // A document in the workbook's folder is shown by its relative path; one from another folder
@@ -24,7 +26,7 @@ function DocumentName({ path }: { path: string }) {
   )
 }
 
-export function JobPanel({ listing, busy, onFill, onAddDocuments }: Props) {
+export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentFolder, selection }: Props) {
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
@@ -45,6 +47,10 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments }: Props) {
     })
     known.current = { folder: listing.folder, documents: listing.documents }
   }, [listing])
+
+  useEffect(() => {
+    if (selection) setDocuments(selection.documents)
+  }, [selection])
 
   if (!listing.folder) return <aside className="job"><p className="muted">Open the workbook to fill to start.</p></aside>
 
@@ -74,7 +80,10 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments }: Props) {
           ))}
         </div>
       </fieldset>
-      <button onClick={onAddDocuments} disabled={busy}>Add documents…</button>
+      <div className="add-documents">
+        <button onClick={onAddDocumentFolder} disabled={busy} title="Use the PDFs and images of another folder">Choose a documents folder…</button>
+        <button onClick={onAddDocuments} disabled={busy}>Add files…</button>
+      </div>
 
       <label htmlFor="notes">Instructions <span className="muted">(optional)</span></label>
       <textarea id="notes" rows={4} placeholder="e.g. amounts excluding VAT, one row per line item, dates as dd/mm/yyyy"

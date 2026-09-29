@@ -217,6 +217,30 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
             raise HTTPException(400, "Not added (not a PDF, image or text document): " + ", ".join(refused))
         return {**desktop.listing(), "added": added}
 
+    @app.post("/api/document-folder", dependencies=guarded)
+    def add_document_folder(body: FolderIn):
+        """Add every document of a folder (PDFs and images, not its subfolders). A folder outside the
+        workbook's becomes readable by the agent, read-only."""
+        if desktop.folder is None:
+            raise HTTPException(400, "Open a workbook first.")
+        if desktop.busy:
+            raise HTTPException(409, "Wait for the current job to finish.")
+        folder = Path(body.path).expanduser().resolve()
+        if not folder.is_dir():
+            raise HTTPException(400, f"Not a folder: {folder}")
+        paths = sorted((p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in DOCUMENT_TYPES
+                        and p.suffix.lower() not in (".txt", ".csv")), key=lambda p: p.name.lower())
+        if not paths:
+            raise HTTPException(400, f"No PDF or image in {folder} (documents in its subfolders are not included).")
+        inside = folder == desktop.folder or desktop.folder in folder.parents
+        if not inside:
+            session.add_read_folder(folder)
+        added = [p.relative_to(desktop.folder).as_posix() if inside else p.as_posix() for p in paths]
+        desktop.extra_documents.update(added)
+        job_log.info("Documents folder %s: %d document(s)%s", folder, len(added), "" if inside else " (read-only)")
+        desktop.ui.emit({"type": "listing", **desktop.listing()})
+        return {**desktop.listing(), "added": added}
+
     @app.post("/api/job", dependencies=guarded)
     def start_job(body: JobIn):
         if desktop.folder is None:

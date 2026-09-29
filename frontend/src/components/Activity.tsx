@@ -6,7 +6,12 @@ import { Change } from './Change'
 
 export function Activity({ items, busy, activity }: { items: Item[]; busy: boolean; activity: string }) {
   const end = useRef<HTMLDivElement>(null)
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [items.length, busy, activity])
+  useEffect(() => {
+    // A block, not `() => end.current?.scrollIntoView(...)`: newer WebView2/Chromium versions return a
+    // Promise from scrollIntoView, which React would then call as the effect's cleanup and crash
+    // ("l is not a function", a blank window).
+    end.current?.scrollIntoView({ block: 'end' })
+  }, [items.length, busy, activity])
 
   const visible = items.filter((item) => item.kind !== 'claude' || item.text.trim())
   if (visible.length === 0 && !busy) {
@@ -15,7 +20,7 @@ export function Activity({ items, busy, activity }: { items: Item[]; busy: boole
         <h2>Fill a workbook from your documents</h2>
         <ol>
           <li>Open the workbook to fill. Its folder is where the agent works.</li>
-          <li>Tick the documents to use from that folder, or add documents from any folder (read only).</li>
+          <li>Tick the documents to use from that folder, or <b>choose a documents folder</b> if they are elsewhere (read only).</li>
           <li>Press <b>Fill workbook</b>. You approve every change before it is saved.</li>
         </ol>
       </div>
