@@ -262,7 +262,7 @@ resource gatewayLogs 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' 
   }
 }
 
-@description('What the PCs need (infra/scripts/set-pc-settings.ps1): the gateway URL.')
+@description('The gateway URL: the EXCEL_FILLER_GATEWAY variable of the app build (see infra/README.md).')
 output gatewayUrl string = '${apim.properties.gatewayUrl}/excel-filler'
 
 @description('The gateway identity (it was given access to the Foundry resource).')
