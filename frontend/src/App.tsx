@@ -3,6 +3,7 @@ import { api, connectEvents, pickDocumentFolder, pickDocuments, pickWorkbook } f
 import { Activity } from './components/Activity'
 import { JobPanel } from './components/JobPanel'
 import { QuestionDialog } from './components/QuestionDialog'
+import { Splitter, useSidebarWidth } from './components/Splitter'
 import { answered, apply, initialState, type State } from './state'
 import type { AgentEvent, Hello, Listing } from './types'
 
@@ -25,6 +26,7 @@ export default function App() {
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [followUp, setFollowUp] = useState('')
+  const [sidebarWidth, setSidebarWidth] = useSidebarWidth()
   const [claude, setClaude] = useState<{ state: 'checking' | 'ok' | 'failed'; message: string }>({ state: 'checking', message: '' })
 
   const checkConnection = useCallback(async () => {
@@ -146,9 +148,10 @@ export default function App() {
       )}
       {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>Dismiss</button></div>}
 
-      <main>
+      <main style={{ gridTemplateColumns: `${sidebarWidth}px auto minmax(0, 1fr)` }}>
         <JobPanel listing={listing} busy={busy} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder} selection={selection}
           onFill={(workbook, documents, notes) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes) })} />
+        <Splitter width={sidebarWidth} onResize={setSidebarWidth} />
         <section className="feed">
           <Activity items={state.items} busy={busy} activity={state.activity} onOpen={(name) => run(() => api.openInExcel(name))} />
           {awaitingReply && <div className="reply-hint" role="status">Claude asked you a question: answer it below.</div>}
