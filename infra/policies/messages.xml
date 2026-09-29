@@ -1,0 +1,77 @@
+<!--
+  Excel filler gateway: calls to Claude (POST /v1/messages).
+
+  1. Who: a valid Entra ID token of our tenant, issued to the Excel filler desktop app for this API,
+     for a user who has the Excel.Filler.User role (granted through a group).
+  2. How much: a per-user limit per minute and per day.
+  3. What is recorded: one metric and one trace per request, with the user's object id and the
+     app version; never the content of the request or the response.
+  4. Where to: the Foundry deployment, called with the gateway's own identity (managed identity).
+     The employee's token never reaches Foundry, and no key exists on any PC.
+
+  Values in {{...}} are API Management named values (see main.bicep); change them in the portal
+  (API Management > Named values) or by redeploying.
+-->
+<policies>
+  <inbound>
+    <base />
+    <!-- 1. Who -->
+    <validate-azure-ad-token tenant-id="{{excel-filler-tenant-id}}" header-name="Authorization"
+        failed-validation-httpcode="401" output-token-variable-name="jwt"
+        failed-validation-error-message="Sign in with your work account to use Excel filler.">
+      <client-application-ids>
+        <application-id>{{excel-filler-client-app-id}}</application-id>
+      </client-application-ids>
+      <audiences>
+        <audience>{{excel-filler-api-app-id}}</audience>
+        <audience>api://{{excel-filler-api-app-id}}</audience>
+      </audiences>
+    </validate-azure-ad-token>
+    <set-variable name="user" value="@(((Jwt)context.Variables["jwt"]).Claims.GetValueOrDefault("oid", "unknown"))" />
+    <set-variable name="appVersion" value="@(context.Request.Headers.GetValueOrDefault("x-app-version", "unknown"))" />
+    <choose>
+      <when condition="@(!((Jwt)context.Variables["jwt"]).Claims.GetValueOrDefault("roles", "").Split(',').Contains("Excel.Filler.User"))">
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"type": "error", "error": {"type": "permission_error", "message": "Your account is not allowed to use Excel filler. Ask IT to add you to the Excel filler users group."}}</set-body>
+        </return-response>
+      </when>
+    </choose>
+
+    <!-- 2. How much, per user -->
+    <rate-limit-by-key calls="{{excel-filler-calls-per-minute}}" renewal-period="60"
+        counter-key="@((string)context.Variables["user"])" />
+    <quota-by-key calls="{{excel-filler-calls-per-day}}" renewal-period="86400"
+        counter-key="@((string)context.Variables["user"])" />
+
+    <!-- 3. What is recorded (Application Insights): who and which version, no content -->
+    <emit-metric name="Requests" namespace="excel-filler">
+      <dimension name="User" value="@((string)context.Variables["user"])" />
+      <dimension name="App version" value="@((string)context.Variables["appVersion"])" />
+    </emit-metric>
+    <trace source="excel-filler" severity="information">
+      <message>Claude request</message>
+      <metadata name="user" value="@((string)context.Variables["user"])" />
+      <metadata name="appVersion" value="@((string)context.Variables["appVersion"])" />
+    </trace>
+
+    <!-- 4. Where to: Foundry, with the gateway's identity -->
+    <set-header name="api-key" exists-action="delete" />
+    <set-header name="x-app-name" exists-action="delete" />
+    <authentication-managed-identity resource="{{excel-filler-foundry-token-resource}}" />
+    <set-backend-service backend-id="excel-filler-foundry" />
+  </inbound>
+  <backend>
+    <!-- Streamed answers (server-sent events) go through as they come; long documents take time. -->
+    <forward-request timeout="600" buffer-response="false" />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

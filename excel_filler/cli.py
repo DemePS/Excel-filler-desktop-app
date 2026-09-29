@@ -5,12 +5,12 @@ to script jobs.
 """
 
 import argparse
+import os
 from pathlib import Path
 
-from coding_agent import session
-from coding_agent.ui import TerminalUI, read_text
+from dotenv import load_dotenv
 
-from . import agent
+from . import gateway
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,6 +25,24 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    load_dotenv()
+    home = Path(os.environ["HOME"]).expanduser() if os.environ.get("HOME") else Path.home()
+    load_dotenv(home / ".coding-agent" / ".env")
+    # The gateway's settings before the agent engine is imported (it reads its settings then).
+    settings = gateway.configure(home)
+    if settings.url:
+        print(f"Settings: {gateway.describe(settings)}")
+    if required := settings.update_required:
+        raise SystemExit(required)
+    if settings.notice:
+        print(f"Notice: {settings.notice}")
+
+    from coding_agent import session
+    from coding_agent.ui import TerminalUI, read_text
+
+    from . import agent
+
+    gateway.apply_headers()
     ui = TerminalUI()
     try:
         folder = agent.open_folder(args.dir, ui, resume=args.resume)

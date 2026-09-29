@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from coding_agent import session
 
-from .. import agent
+from .. import agent, gateway
 from .joblog import JobLog, log as job_log
 from .webui import WebUI
 
@@ -141,6 +141,8 @@ def job_request(workbook: str, documents: list[str], notes: str) -> str:
 
 def connection_problem() -> str | None:
     """Why the agent cannot reach Claude yet, in plain words (None when the settings look complete)."""
+    if required := gateway.current().update_required:
+        return required
     if not os.environ.get("ANTHROPIC_FOUNDRY_ENDPOINT"):
         return "The Claude endpoint is not set up (ANTHROPIC_FOUNDRY_ENDPOINT)."
     return None
@@ -162,7 +164,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
 
     @app.get("/api/state", dependencies=guarded)
     def get_state():
-        return {**desktop.listing(), "busy": desktop.busy, "connection_problem": connection_problem(),
+        return {**desktop.listing(), "busy": desktop.busy, "connection_problem": connection_problem(), "notice": gateway.current().notice,
                 "pending": desktop.ui.pending_questions()}
 
     @app.get("/api/check", dependencies=guarded)
@@ -298,7 +300,8 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         receiver = getter = None
         try:
             await ws.send_text(to_json({"type": "hello", "history": history, "busy": desktop.busy,
-                                        **desktop.listing(), "connection_problem": connection_problem()}))
+                                        **desktop.listing(), "connection_problem": connection_problem(),
+                                        "notice": gateway.current().notice}))
             receiver = asyncio.create_task(ws.receive_text())  # only to notice the window closing
             while True:
                 getter = asyncio.create_task(queue.get())

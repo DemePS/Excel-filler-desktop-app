@@ -13,9 +13,9 @@ function reducer(state: State, action: Action): State {
   if (action.kind === 'you') return answered(state, action.text)
   if (action.kind === 'hello') {
     // A (re)connection: rebuild everything from the history the backend kept.
-    const { history, busy, connection_problem, folder, workbooks, documents, workbook } = action.hello
+    const { history, busy, connection_problem, notice, folder, workbooks, documents, workbook } = action.hello
     const rebuilt = history.reduce(apply, { ...initialState })
-    return { ...rebuilt, busy, problem: connection_problem, listing: { folder, workbooks, documents, workbook } }
+    return { ...rebuilt, busy, problem: connection_problem, notice: notice ?? null, listing: { folder, workbooks, documents, workbook } }
   }
   return apply(state, action.event)
 }
@@ -136,7 +136,9 @@ export default function App() {
       </header>
 
       {!connected && <div className="banner warning">Connecting to the agent…</div>}
-      {claude.state === 'failed' && (
+      {state.notice && <div className="banner info" role="status">{state.notice}</div>}
+      {state.problem && <div className="banner error" role="alert">{state.problem}</div>}
+      {claude.state === 'failed' && claude.message !== state.problem && (
         <div className="banner error" role="alert">
           <b>Claude cannot be reached.</b> {claude.message}
           <button className="link" onClick={checkConnection}>Retry</button>

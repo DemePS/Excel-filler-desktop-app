@@ -7,7 +7,8 @@ export type State = {
   question: Question | null
   busy: boolean
   listing: Listing
-  problem: string | null
+  problem: string | null // why jobs cannot run (settings missing, update required)
+  notice: string | null
   lastChange: Item | null // shown with the next approval question
   lastAsked: string | null // Claude's question, shown with the next text question
   activity: string // what Claude is doing right now, shown while a job runs
@@ -19,6 +20,7 @@ export const initialState: State = {
   busy: false,
   listing: { folder: null, workbooks: [], documents: [], workbook: null },
   problem: null,
+  notice: null,
   lastChange: null,
   lastAsked: null,
   activity: '',

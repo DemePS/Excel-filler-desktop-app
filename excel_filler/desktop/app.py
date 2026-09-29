@@ -122,11 +122,18 @@ def main() -> None:
     setup_logging()
     log.info("Starting (Python %s, %s); log file: %s", sys.version.split()[0], sys.platform, LOG_FILE)
 
+    # The organization's gateway and its central settings (deployment, minimum version), before the
+    # agent engine is imported: it reads its settings then.
+    from .. import gateway
+    log.info("Settings: %s", gateway.describe(gateway.configure(HOME)))
+
     import uvicorn
 
     from coding_agent import session
 
     from .server import create_app
+
+    gateway.apply_headers()
 
     token = secrets.token_urlsafe(24)
     port = free_port()

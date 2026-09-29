@@ -97,6 +97,7 @@ button.link { border: none; background: none; text-decoration: underline; margin
 .crash { max-width: 640px; margin: 80px auto; padding: 24px; line-height: 1.5; }
 .crash pre { white-space: pre-wrap; background: var(--danger-soft); color: var(--danger); padding: 10px; border-radius: 8px; }
 .error-card { border: 1px solid var(--danger); background: var(--danger-soft); color: var(--danger); border-radius: 10px; padding: 10px 14px; line-height: 1.45; }
+.banner.info { background: var(--accent-soft); color: var(--accent); }
 .banner.warning { background: var(--warn-soft); color: var(--warn); }
 .banner.error { background: var(--danger-soft); color: var(--danger); }
 

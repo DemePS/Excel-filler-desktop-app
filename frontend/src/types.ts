@@ -26,6 +26,7 @@ export type Hello = Listing & {
   history: AgentEvent[]
   busy: boolean
   connection_problem: string | null
+  notice: string | null // a message from IT (the gateway's settings)
 }
 
 // What the activity feed shows.
