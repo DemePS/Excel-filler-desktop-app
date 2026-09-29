@@ -1,0 +1,118 @@
+# The downloadable Windows app: build, test, and publish it.
+#
+# - Every push to api-management: tests, the Windows build, its self-test and a start of the real
+#   window; the zip is kept as a workflow artifact (Actions > this run > Artifacts).
+# - A tag v<version> (e.g. v0.1.0, the version in pyproject.toml): the same, then a GitHub Release
+#   with ExcelFiller-<version>-windows.zip for people to download.
+#
+# The organization's settings are built into the app from this repository's Actions variables
+# (Settings > Secrets and variables > Actions > Variables; not secrets, none of them is one):
+#   EXCEL_FILLER_GATEWAY    https://<apim>.azure-api.net/excel-filler
+#   EXCEL_FILLER_API_SCOPE  api://<gateway API app id>/.default
+#   EXCEL_FILLER_CLIENT_ID  the desktop app registration's application (client) ID
+#   EXCEL_FILLER_TENANT_ID  the organization's tenant ID
+# Without them the build is a developer build (no access check, Foundry called directly).
+
+name: Windows app
+
+on:
+  push:
+    branches: [api-management]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # the release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.17"
+
+      - name: Python and the pinned dependencies
+        run: |
+          uv python install 3.12
+          uv sync --locked --group build --python 3.12
+
+      - name: Tests
+        run: uv run --python 3.12 pytest -q
+
+      - name: Version
+        id: version
+        run: |
+          $version = (uv run --python 3.12 python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])").Trim()
+          if ($env:GITHUB_REF_TYPE -eq "tag" -and $env:GITHUB_REF_NAME -ne "v$version") {
+            Write-Error "The tag $env:GITHUB_REF_NAME does not match the version in pyproject.toml ($version)."
+            exit 1
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Organization settings
+        env:
+          GATEWAY: ${{ vars.EXCEL_FILLER_GATEWAY }}
+          API_SCOPE: ${{ vars.EXCEL_FILLER_API_SCOPE }}
+          CLIENT_ID: ${{ vars.EXCEL_FILLER_CLIENT_ID }}
+          TENANT_ID: ${{ vars.EXCEL_FILLER_TENANT_ID }}
+        run: |
+          $settings = [ordered]@{
+            _comment  = "The organization's settings, built into this app by the release build."
+            gateway   = "$env:GATEWAY"
+            api_scope = "$env:API_SCOPE"
+            client_id = "$env:CLIENT_ID"
+            tenant_id = "$env:TENANT_ID"
+          }
+          $settings | ConvertTo-Json | Set-Content -Encoding utf8 excel_filler/organization.json
+          if ($env:CLIENT_ID) { "Organization build: gateway $env:GATEWAY" } else { "Developer build (no organization settings)" }
+
+      - name: Build ExcelFiller.exe
+        working-directory: packaging
+        run: uv run --python 3.12 --group build pyinstaller --noconfirm --distpath ../dist --workpath ../build excel-filler.spec
+
+      - name: Self-test of the built app
+        run: |
+          $log = Join-Path $env:USERPROFILE ".coding-agent\logs\excel-filler-desktop.log"
+          $p = Start-Process -FilePath dist\ExcelFiller\ExcelFiller.exe -ArgumentList "--self-test" -Wait -PassThru
+          Get-Content $log -Tail 20
+          if ($p.ExitCode -ne 0) { Write-Error "Self-test failed (exit code $($p.ExitCode))"; exit 1 }
+
+      - name: The real window starts (WebView2)
+        run: |
+          $log = Join-Path $env:USERPROFILE ".coding-agent\logs\excel-filler-desktop.log"
+          Remove-Item $log -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath dist\ExcelFiller\ExcelFiller.exe -PassThru
+          Start-Sleep -Seconds 25
+          $text = Get-Content $log -Raw
+          Get-Content $log -Tail 25
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          if ($text -notmatch "Backend ready") { Write-Error "The backend did not start"; exit 1 }
+          if ($text -match "native window could not open") { Write-Error "The native window did not open"; exit 1 }
+          if ($text -match "Unexpected error") { Write-Error "An unexpected error was logged"; exit 1 }
+
+      - name: Zip
+        run: Compress-Archive -Path dist\ExcelFiller -DestinationPath "ExcelFiller-${{ steps.version.outputs.version }}-windows.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ExcelFiller-${{ steps.version.outputs.version }}-windows
+          path: ExcelFiller-${{ steps.version.outputs.version }}-windows.zip
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ExcelFiller-${{ steps.version.outputs.version }}-windows.zip
+          body: |
+            Excel filler ${{ steps.version.outputs.version }} for Windows 10/11.
+
+            1. Download ExcelFiller-${{ steps.version.outputs.version }}-windows.zip and extract it (for example to your Documents folder).
+            2. Open the ExcelFiller folder and start ExcelFiller.exe.
+            3. Sign in with your work account if asked. Excel filler is available to members of the Excel filler users group.

@@ -10,6 +10,7 @@ Everything (startup, errors, the backend's log) also goes to
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import secrets
@@ -115,11 +116,48 @@ def run_in_window(url: str) -> None:
     webview.start()
 
 
+def self_test() -> int:
+    """Everything the app needs at run time is there (the packaged build runs this): exit code 0 if so."""
+    checks: list[tuple[str, bool, str]] = []
+
+    def check(name, test):
+        try:
+            detail = test()
+            checks.append((name, True, str(detail or "")))
+        except Exception as e:  # noqa: BLE001 -- report every failure
+            checks.append((name, False, f"{type(e).__name__}: {e}"))
+
+    from .. import gateway
+
+    check("version", lambda: gateway.app_version() if gateway.app_version() != "0.0.0" else 1 / 0)
+    check("organization settings", lambda: json.loads(gateway.ORGANIZATION_FILE.read_text(encoding="utf-8-sig")).get("gateway") or "(none: developer build)")
+    check("agent engine", lambda: __import__("coding_agent.session").__name__)
+    check("backend", lambda: type(__import__("excel_filler.desktop.server", fromlist=["create_app"]).create_app("t")).__name__)
+    from .server import STATIC_DIR
+    check("window UI", lambda: (STATIC_DIR / "index.html").stat().st_size)
+    check("uvicorn", lambda: __import__("uvicorn").__version__)
+    check("window (pywebview)", lambda: __import__("webview").__name__)
+    check("documents (pypdf, openpyxl)", lambda: (__import__("pypdf").__version__, __import__("openpyxl").__version__))
+    check("sign-in (azure-identity)", lambda: __import__("azure.identity", fromlist=["InteractiveBrowserCredential"]).__name__)
+    if sys.platform == "win32":
+        check("Windows account sign-in (broker)", lambda: __import__("azure.identity.broker", fromlist=["x"]).__name__)
+        check(".NET bridge (pythonnet)", lambda: __import__("clr").__name__)
+    failed = [c for c in checks if not c[1]]
+    for name, ok, detail in checks:
+        (log.info if ok else log.error)("Self-test %s: %s %s", "OK  " if ok else "FAIL", name, detail)
+    log.info("Self-test: %s", "all OK" if not failed else f"{len(failed)} failure(s)")
+    return 1 if failed else 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Excel filler desktop window.")
     parser.add_argument("--browser", action="store_true", help="Open in the default browser instead of a window.")
+    parser.add_argument("--self-test", action="store_true",
+                        help="Check that the app and its window components load, then exit (used by the build).")
     args = parser.parse_args()
     setup_logging()
+    if args.self_test:
+        raise SystemExit(self_test())
     log.info("Starting (Python %s, %s); log file: %s", sys.version.split()[0], sys.platform, LOG_FILE)
 
     # The organization's gateway and its central settings (deployment, minimum version), before the

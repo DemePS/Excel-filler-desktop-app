@@ -41,7 +41,7 @@ ORGANIZATION_KEYS = {"gateway": "EXCEL_FILLER_GATEWAY", "api_scope": "EXCEL_FILL
 def organization_defaults(file: Path = ORGANIZATION_FILE) -> None:
     """The organization's settings built into the app, unless environment variables set them."""
     try:
-        data = json.loads(file.read_text(encoding="utf-8"))
+        data = json.loads(file.read_text(encoding="utf-8-sig"))  # with or without a BOM (PowerShell)
     except (OSError, ValueError):
         return
     for key, variable in ORGANIZATION_KEYS.items():
