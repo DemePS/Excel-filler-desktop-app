@@ -13,6 +13,7 @@ export type AgentEvent =
   | { type: 'assistant_start' | 'assistant_end' | 'thinking' }
   | { type: 'text'; text: string }
   | { type: 'request'; text: string }
+  | { type: 'saved'; name: string; path: string; backups: string }
   | { type: 'tool'; name: string }
   | { type: 'tool_detail'; text: string }
   | { type: 'tool_result'; name: string; arguments: string; ok: boolean; summary: string }
@@ -34,6 +35,7 @@ export type Item =
   | { kind: 'you'; text: string }
   | { kind: 'step'; label: string; detail: string; failed?: string }
   | { kind: 'note'; tone: 'status' | 'success' | 'failure' | 'warning' | 'message' | 'error'; text: string }
+  | { kind: 'saved'; name: string; path: string; backups: string }
   | { kind: 'change'; event: Extract<AgentEvent, { type: 'panel' | 'diff' | 'cells' }> }
 
 export type Question =

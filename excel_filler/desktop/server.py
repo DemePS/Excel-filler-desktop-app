@@ -13,6 +13,8 @@ import json
 import logging
 import os
 import secrets
+import subprocess
+import sys
 import threading
 from pathlib import Path
 
@@ -22,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from coding_agent import session
+from coding_agent.config import BACKUP_HOME
 
 from .. import agent
 from .joblog import JobLog, log as job_log
@@ -69,6 +72,13 @@ class Desktop:
         self.extra_documents = set()
         self.ui.emit({"type": "listing", **self.listing()})
 
+    def workbook_times(self) -> dict[str, int]:
+        """Last change of each workbook in the folder (to see which ones a job saved)."""
+        if self.folder is None:
+            return {}
+        return {p.name: p.stat().st_mtime_ns for p in self.folder.iterdir()
+                if p.is_file() and p.suffix.lower() in (".xlsx", ".xlsm") and not p.name.startswith("~$")}
+
     def run(self, job, request: str = "") -> None:
         """Run a job (a function calling the agent) in a worker thread; `request` is what you asked,
         shown first in the window's feed."""
@@ -77,6 +87,7 @@ class Desktop:
                 raise HTTPException(409, "A job is already running.")
             self.busy = True
         self.ui.new_job()
+        before = self.workbook_times()
         self.ui.emit({"type": "busy", "busy": True})
         if request:
             self.ui.emit({"type": "request", "text": request})
@@ -87,6 +98,11 @@ class Desktop:
             except Exception as e:  # never let the worker die silently
                 self.ui.message(f"[error] {type(e).__name__}: {e}")
             finally:
+                # Each workbook the job saved: the window offers to open it.
+                after = self.workbook_times()
+                for name in sorted(n for n, t in after.items() if before.get(n) != t):
+                    self.ui.emit({"type": "saved", "name": name, "path": str(self.folder / name),
+                                  "backups": str(BACKUP_HOME)})
                 with self.lock:
                     self.busy = False
                 self.ui.emit({"type": "busy", "busy": False})
@@ -137,6 +153,16 @@ def job_request(workbook: str, documents: list[str], notes: str) -> str:
     names = [Path(d).name for d in documents]
     listed = ", ".join(names[:-1]) + f" and {names[-1]}" if len(names) > 1 else "".join(names)
     return f"Fill {workbook}" + (f" from {listed}" if listed else "") + (f"\n{notes.strip()}" if notes.strip() else "")
+
+
+def open_file(path: Path) -> None:
+    """Open a file in its default application (Excel for a workbook)."""
+    if sys.platform == "win32":
+        os.startfile(str(path))  # noqa: S606 -- a workbook of the job's folder, checked by the caller
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(path)])
+    else:
+        subprocess.Popen(["xdg-open", str(path)])
 
 
 def connection_problem() -> str | None:
@@ -240,6 +266,18 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         job_log.info("Documents folder %s: %d document(s)%s", folder, len(added), "" if inside else " (read-only)")
         desktop.ui.emit({"type": "listing", **desktop.listing()})
         return {**desktop.listing(), "added": added}
+
+    @app.post("/api/open", dependencies=guarded)
+    def open_workbook_in_excel(body: TextIn):
+        """Open a workbook of the folder in Excel (only a workbook listed in the folder)."""
+        if desktop.folder is None or body.text not in desktop.listing()["workbooks"]:
+            raise HTTPException(400, "Only a workbook of the open folder can be opened.")
+        try:
+            open_file(desktop.folder / body.text)
+        except OSError as e:
+            raise HTTPException(500, f"Could not open {body.text}: {e}")
+        job_log.info("Opened %s in its application", body.text)
+        return {"ok": True}
 
     @app.post("/api/job", dependencies=guarded)
     def start_job(body: JobIn):

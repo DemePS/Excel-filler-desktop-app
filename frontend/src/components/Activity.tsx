@@ -5,7 +5,9 @@ import type { Item } from '../types'
 import { Change } from './Change'
 import { Markdown } from './Markdown'
 
-export function Activity({ items, busy, activity }: { items: Item[]; busy: boolean; activity: string }) {
+type Props = { items: Item[]; busy: boolean; activity: string; onOpen: (name: string) => void }
+
+export function Activity({ items, busy, activity, onOpen }: Props) {
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
     // A block, not `() => end.current?.scrollIntoView(...)`: newer WebView2/Chromium versions return a
@@ -22,6 +24,7 @@ export function Activity({ items, busy, activity }: { items: Item[]; busy: boole
         <ol>
           <li>Open the workbook to fill. Its folder is where the agent works.</li>
           <li>Tick the documents to use from that folder, or pick their <b>Documents folder…</b> if they are elsewhere (read only).</li>
+          <li><b>Keep a copy of the workbook</b>: the agent writes into it.</li>
           <li>Press <b>Fill workbook</b>. You approve every change before it is saved.</li>
         </ol>
       </div>
@@ -46,6 +49,17 @@ export function Activity({ items, busy, activity }: { items: Item[]; busy: boole
           case 'note':
             if (item.tone === 'error') return <div key={i} className="error-card" role="alert"><b>Something went wrong.</b> {item.text}</div>
             return <div key={i} className={`note note-${item.tone}`}>{item.tone === 'success' ? '✔ ' : item.tone === 'failure' ? '✘ ' : ''}{item.text}</div>
+          case 'saved':
+            return (
+              <div key={i} className="saved">
+                <div>
+                  <b>{item.name}</b> is updated.
+                  <small title={item.path}>{item.path}</small>
+                  <small>The previous version is kept in {item.backups}</small>
+                </div>
+                <button className="primary" onClick={() => onOpen(item.name)}>Open in Excel</button>
+              </div>
+            )
           case 'change':
             return <Change key={i} item={item} />
         }

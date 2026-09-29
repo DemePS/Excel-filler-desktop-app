@@ -310,3 +310,44 @@ def test_a_documents_folder_inside_the_workbook_folder_is_relative(client, folde
     client.post("/api/workbook", json={"path": str(folder / "costs.xlsx")})
     r = client.post("/api/document-folder", json={"path": str(folder / "invoices")})
     assert r.json()["added"] == ["invoices/x.pdf"] and "invoices/x.pdf" in r.json()["documents"]
+
+
+def test_after_a_job_the_saved_workbook_can_be_opened(client, folder, monkeypatch):
+    from excel_filler.desktop import server
+    fake = FakeClaude([
+        ([("edit_excel", {"path": "costs.xlsx", "changes": [{"sheet": "Costs", "cell": "A2", "value": "Sensors"}]})], "tool_use"),
+        ([("text", "Filled A2.")], "end_turn"),
+    ])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    client.post("/api/folder", json={"path": str(folder)})
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]})
+        events = []
+        while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
+            event = ws.receive_json()
+            events.append(event)
+            if event["type"] == "confirm":
+                client.post("/api/answer", json={"id": event["id"], "value": "yes"})
+    saved = [e for e in events if e["type"] == "saved"]
+    assert [e["name"] for e in saved] == ["costs.xlsx"] and saved[0]["path"] == str(folder / "costs.xlsx")
+    opened = []
+    monkeypatch.setattr(server, "open_file", opened.append)
+    assert client.post("/api/open", json={"text": "costs.xlsx"}).json() == {"ok": True}
+    assert opened == [folder / "costs.xlsx"]
+    for other in ("invoice.pdf", "../costs.xlsx", str(folder / "costs.xlsx")):
+        assert client.post("/api/open", json={"text": other}).status_code == 400
+    assert opened == [folder / "costs.xlsx"]
+
+
+def test_a_job_that_changes_nothing_offers_nothing_to_open(client, folder, monkeypatch):
+    fake = FakeClaude([([("text", "Nothing to fill.")], "end_turn")])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    client.post("/api/folder", json={"path": str(folder)})
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]})
+        events = []
+        while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
+            events.append(ws.receive_json())
+    assert not [e for e in events if e["type"] == "saved"]

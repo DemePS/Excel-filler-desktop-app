@@ -24,6 +24,7 @@ export const api = {
   followUp: (text: string) => call('/api/followup', { text }),
   answer: (id: string, value: string | null) => call('/api/answer', { id, value }),
   stop: () => call('/api/stop', {}),
+  openInExcel: (name: string) => call('/api/open', { text: name }),
   check: () => call<{ ok: boolean; message: string }>('/api/check'),
 }
 
