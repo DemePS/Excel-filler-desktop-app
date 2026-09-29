@@ -39,14 +39,6 @@ export default function App() {
     }
   }, [])
   useEffect(() => { if (connected) checkConnection() }, [connected, checkConnection])
-  // A long check is usually the Microsoft sign-in page waiting in the browser.
-  const [slowCheck, setSlowCheck] = useState(false)
-  useEffect(() => {
-    setSlowCheck(false)
-    if (claude.state !== 'checking') return
-    const timer = window.setTimeout(() => setSlowCheck(true), 3000)
-    return () => window.clearTimeout(timer)
-  }, [claude.state])
 
   useEffect(() => {
     let ws: WebSocket | null = null
@@ -58,7 +50,13 @@ export default function App() {
           if (event.type === 'hello') {
             setConnected(true)
             dispatch({ kind: 'hello', hello: event as Hello })
-          } else dispatch({ kind: 'event', event: event as AgentEvent })
+          } else {
+            // Claude is answering: it is reachable, whatever the startup check says (or has not said yet).
+            if (['assistant_start', 'text', 'thinking', 'tool'].includes(event.type)) {
+              setClaude((c) => (c.state === 'ok' ? c : { state: 'ok', message: 'Claude answered' }))
+            }
+            dispatch({ kind: 'event', event: event as AgentEvent })
+          }
         },
         () => {
           setConnected(false)
@@ -129,8 +127,9 @@ export default function App() {
       <header>
         <div className="brand"><span className="logo" aria-hidden /> Excel filler</div>
         <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
-        <span className={`claude-status ${claude.state}`} title={claude.message}>
-          {claude.state === 'checking' ? (slowCheck ? 'Signing in… finish in your browser' : 'Checking Claude…') : claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
+        <span className={`claude-status ${claude.state}`}
+          title={claude.state === 'checking' ? 'Waiting for a first answer from Claude. If a Microsoft sign-in page opened in your browser, finish signing in there.' : claude.message}>
+          {claude.state === 'checking' ? 'Checking Claude…' : claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
         </span>
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy}>
           {listing.folder ? 'Open another workbook…' : 'Open workbook…'}

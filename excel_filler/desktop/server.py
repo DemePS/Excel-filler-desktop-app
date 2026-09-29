@@ -16,6 +16,7 @@ import secrets
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -196,8 +197,10 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
         """Can the app reach Claude? A 1-token call; the window shows the answer at startup."""
         if problem := connection_problem():
             return {"ok": False, "message": problem}
+        started = time.monotonic()
         ok, message = session.check_connection()
-        (job_log.info if ok else job_log.error)("Connection check: %s", message if not ok else "OK, " + message)
+        took = f"{time.monotonic() - started:.1f} s"
+        (job_log.info if ok else job_log.error)("Connection check (%s): %s", took, message if not ok else "OK, " + message)
         return {"ok": ok, "message": message}
 
     @app.post("/api/folder", dependencies=guarded)
