@@ -379,3 +379,22 @@ def test_sheets_to_fill_are_listed_and_enforced(client, folder, monkeypatch):
     refused = next(e for e in events if e["type"] == "tool_result")
     assert refused["ok"] is False and "Only these sheets of costs.xlsx may be filled: Costs" in refused["summary"]
     assert openpyxl.load_workbook(folder / "costs.xlsx")["Data"]["A2"].value is None
+
+
+def test_the_job_log_names_the_sheet_and_range(client, folder, monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger="excel-filler.job")
+    fake = FakeClaude([
+        ([("read_excel", {"path": "costs.xlsx", "sheet": "Costs", "range": "A1:B5"})], "tool_use"),
+        ([("text", "Done.")], "end_turn"),
+    ])
+    monkeypatch.setattr(session, "_get_client", fake.client)
+    client.post("/api/folder", json={"path": str(folder)})
+    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
+        ws.receive_json()
+        client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]})
+        events = []
+        while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
+            events.append(ws.receive_json())
+    lines = [r.getMessage() for r in caplog.records if r.name == "excel-filler.job"]
+    assert "Claude reads the workbook costs.xlsx (sheet Costs, A1:B5)" in lines, lines

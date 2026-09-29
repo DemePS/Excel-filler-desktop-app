@@ -24,6 +24,23 @@ TOOL_WORDS = {
 }
 
 
+def argument(summary: str, key: str) -> str | None:
+    """An argument of a tool call summary: key='value' (or key="value" when the value has a quote)."""
+    match = re.search(rf"\b{key}=(?:'([^']*)'|\"([^\"]*)\")", summary)
+    return (match.group(1) if match.group(1) is not None else match.group(2)) if match else None
+
+
+def tool_target(summary: str) -> str:
+    """What a tool works on: 'costs.xlsx (sheet Costs, A1:F40)', 'invoice.pdf (page 2)'."""
+    file = argument(summary, "path")
+    if not file:
+        return ""
+    parts = [f"sheet {s}" for s in [argument(summary, "sheet")] if s]
+    parts += [r for r in [argument(summary, "range")] if r]
+    parts += [f"page {p}" for p in [argument(summary, "pages")] if p]
+    return file + (f" ({', '.join(parts)})" if parts else "")
+
+
 def one_line(text: str, limit: int = 400) -> str:
     text = " ".join(text.split())
     return text if len(text) <= limit else text[:limit] + " …"
@@ -68,10 +85,7 @@ class JobLog:
             self._flush_tool()
             self.tool = event["name"]
         elif kind == "tool_detail":
-            file = re.search(r"path='([^']+)'", event["text"])
-            pages = re.search(r"pages='([^']+)'", event["text"])
-            detail = (file.group(1) if file else "") + (f" (page {pages.group(1)})" if pages else "")
-            self._flush_tool(detail)
+            self._flush_tool(tool_target(event["text"]))
         elif kind == "tool_result":
             self._flush_tool()
             call = f"Tool {event['name']}({event.get('arguments') or ''})"
