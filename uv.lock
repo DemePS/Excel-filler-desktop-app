@@ -415,8 +415,8 @@ wheels = [
 
 [[package]]
 name = "codeagent"
-version = "0.1.0"
-source = { git = "https://github.com/DemePS/CodeAgent.git?rev=5c743ff53f360f3b179e0c4eea57b1115e833490#5c743ff53f360f3b179e0c4eea57b1115e833490" }
+version = "0.5.0"
+source = { git = "https://github.com/DemePS/CodeAgent.git?rev=7d7b7a9b872638a89bc713af5f63e8f3039504ae#7d7b7a9b872638a89bc713af5f63e8f3039504ae" }
 dependencies = [
     { name = "anthropic" },
     { name = "azure-identity" },
@@ -539,7 +539,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "codeagent", git = "https://github.com/DemePS/CodeAgent.git?rev=5c743ff53f360f3b179e0c4eea57b1115e833490" },
+    { name = "codeagent", git = "https://github.com/DemePS/CodeAgent.git?rev=7d7b7a9b872638a89bc713af5f63e8f3039504ae" },
     { name = "fastapi", specifier = "==0.141.1" },
     { name = "pywebview", specifier = "==6.2.1" },
     { name = "uvicorn", specifier = "==0.54.0" },
