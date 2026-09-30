@@ -4,7 +4,7 @@ import openpyxl
 import pytest
 from fastapi.testclient import TestClient
 
-from coding_agent import config, memory, session
+from coding_agent import backups, config, memory, session
 from excel_filler.desktop.server import create_app
 
 from .helpers import FakeClaude, make_pdf
@@ -19,7 +19,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(memory, "MEMORY_UPDATES", False)
     monkeypatch.setenv("ANTHROPIC_FOUNDRY_ENDPOINT", "https://x.services.ai.azure.com/anthropic")
     import coding_agent.tools.documents as documents
-    monkeypatch.setattr(documents, "BACKUP_HOME", tmp_path / "backups")
+    monkeypatch.setattr(backups, "BACKUP_HOME", tmp_path / "backups")
     return TestClient(create_app(TOKEN), headers={"x-token": TOKEN})
 
 

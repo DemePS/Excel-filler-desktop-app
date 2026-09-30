@@ -3,7 +3,7 @@
 import openpyxl
 import pytest
 
-from coding_agent import config, memory, session
+from coding_agent import backups, config, memory, session
 from excel_filler import agent
 
 from .helpers import FakeClaude, ScriptedUI, make_pdf
@@ -15,7 +15,7 @@ def folder(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "MEMORY_UPDATES", False)
     monkeypatch.setattr(memory, "MEMORY_UPDATES", False)
     import coding_agent.tools.documents as documents
-    monkeypatch.setattr(documents, "BACKUP_HOME", tmp_path / "backups")
+    monkeypatch.setattr(backups, "BACKUP_HOME", tmp_path / "backups")
     f = tmp_path / "invoices"
     f.mkdir()
     make_pdf(f / "invoice.pdf", ["Invoice INV-31: Sensors 12 x 45.50 EUR", "Total 546.00 EUR"])
