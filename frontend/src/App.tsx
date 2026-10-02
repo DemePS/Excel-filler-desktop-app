@@ -3,13 +3,15 @@ import { api, connectEvents, pickDocumentFolder, pickDocuments, pickWorkbook } f
 import { Activity } from './components/Activity'
 import { JobPanel } from './components/JobPanel'
 import { QuestionDialog } from './components/QuestionDialog'
+import { SettingsDialog } from './components/SettingsDialog'
 import { Splitter, useSidebarWidth } from './components/Splitter'
 import { answered, apply, initialState, type State } from './state'
-import type { AgentEvent, Hello, Listing } from './types'
+import type { AgentEvent, Hello, Listing, SettingsInfo } from './types'
 
-type Action = { kind: 'event'; event: AgentEvent } | { kind: 'hello'; hello: Hello } | { kind: 'reset' } | { kind: 'you'; text: string }
+type Action = { kind: 'problem'; problem: string | null } | { kind: 'event'; event: AgentEvent } | { kind: 'hello'; hello: Hello } | { kind: 'reset' } | { kind: 'you'; text: string }
 
 function reducer(state: State, action: Action): State {
+  if (action.kind === 'problem') return { ...state, problem: action.problem }
   if (action.kind === 'reset') return { ...state, items: [], lastChange: null, activity: '' }
   if (action.kind === 'you') return answered(state, action.text)
   if (action.kind === 'hello') {
@@ -40,6 +42,20 @@ export default function App() {
     }
   }, [])
   useEffect(() => { if (connected) checkConnection() }, [connected, checkConnection])
+
+  // Settings: the API key. Nothing is set up yet (first run): the dialog opens by itself and cannot be skipped.
+  const [settings, setSettings] = useState<SettingsInfo | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  useEffect(() => {
+    if (!connected) return
+    api.getSettings().then((info) => { setSettings(info); if (!info.configured) setSettingsOpen(true) }).catch(() => {})
+  }, [connected])
+  const settingsChanged = (info: SettingsInfo) => {
+    setSettings(info)
+    setSettingsOpen(!info.configured)
+    dispatch({ kind: 'problem', problem: info.configured ? null : 'Add your Anthropic API key in Settings to start.' })
+    checkConnection()
+  }
 
   useEffect(() => {
     let ws: WebSocket | null = null
@@ -149,18 +165,19 @@ export default function App() {
         <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
         {/* Nothing while the startup check runs: only its result (connected, or an error). */}
         {state.auto && <span className="auto-tag" title="Changes are applied without asking; a backup of the workbook is kept">Auto mode</span>}
-        {claude.state !== 'checking' && (
+        {claude.state !== 'checking' && !state.problem && (
           <span className={`claude-status ${claude.state}`} title={claude.message}>
             {claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
           </span>
         )}
-        <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy}>
+        <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title="Anthropic API key and model">Settings</button>
+        <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy || !!state.problem}>
           {listing.folder ? 'Open another workbook…' : 'Open workbook…'}
         </button>
       </header>
 
       {!connected && <div className="banner warning">Connecting to the agent…</div>}
-      {claude.state === 'failed' && (
+      {claude.state === 'failed' && !state.problem && (
         <div className="banner error" role="alert">
           <b>Claude cannot be reached.</b> {claude.message}
           <button className="link" onClick={checkConnection}>Retry</button>
@@ -189,6 +206,9 @@ export default function App() {
         </section>
       </main>
 
+      {settingsOpen && settings && !question && (
+        <SettingsDialog info={settings} firstRun={!settings.configured} onClose={() => setSettingsOpen(false)} onChanged={settingsChanged} />
+      )}
       {question && <QuestionDialog question={question} onAnswer={(value) => run(async () => {
         await api.answer(question.id, value)
         if (question.kind === 'ask' && value) dispatch({ kind: 'you', text: value })

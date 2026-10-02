@@ -52,3 +52,13 @@ export type Question =
 
 // A sheet of the workbook, with its size (for choosing the sheets to fill).
 export type Sheet = { name: string; rows: number; cols: number }
+
+// GET /api/settings: never the key itself, only its last four characters.
+export type SettingsInfo = {
+  configured: boolean
+  source: 'saved' | 'environment' | 'foundry' | 'none'
+  key_hint: string | null
+  model: string
+  models: { id: string; label: string }[]
+  storage: 'credential-manager' | 'session'
+}

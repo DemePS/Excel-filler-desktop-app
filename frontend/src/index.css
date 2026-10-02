@@ -210,3 +210,9 @@ pre { margin: 0; font-family: var(--mono); font-size: 0.85em; }
 .dialog label { font-weight: 600; }
 .asked { margin: 0; padding: 10px 12px; background: var(--accent-soft); border-radius: 8px; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.settings { width: min(460px, 100%); }
+.settings .hint { color: var(--muted, #666); font-size: 0.9em; margin: 0; }
+.settings .key-row { display: flex; gap: 8px; }
+.settings .key-row input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+.settings select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
