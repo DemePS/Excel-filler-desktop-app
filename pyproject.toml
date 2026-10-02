@@ -8,10 +8,11 @@ dependencies = [
     # Exact versions: the ones tested together (uv.lock pins their own dependencies too). To
     # upgrade, change a version here, run `uv lock`, and run the tests (see README).
     # The agent engine: loop, tools, safety rules, memory -- a commit of the coding agent.
-    "codeagent @ git+https://github.com/DemePS/CodeAgent.git@9a21e615e6a65959f9dd7357cf0b7dbf8e808633",
+    "codeagent @ git+https://github.com/DemePS/CodeAgent.git@1c8fb13f56706fddf4adcd5b83fe3e2701f63b1a",
     "fastapi==0.141.1",   # the desktop window's local backend
     "uvicorn==0.54.0",
     "websockets==16.1.1", # uvicorn's WebSocket support (the window's live events)
+    "keyring>=25",        # saves the API key in the Windows Credential Manager
     "pywebview==6.2.1",   # the native window (WebView2 on Windows, WebKit on macOS)
 ]
 
