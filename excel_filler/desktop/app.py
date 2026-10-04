@@ -33,6 +33,13 @@ LOG_FILE = HOME / ".coding-agent" / "logs" / "excel-filler-desktop.log"
 log = logging.getLogger("excel-filler")
 
 
+class KeyFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        from coding_agent.errors import redact
+        record.msg, record.args = redact(record.getMessage()), None
+        return True
+
+
 def setup_logging() -> None:
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     handlers: list[logging.Handler] = [logging.FileHandler(LOG_FILE, encoding="utf-8")]
@@ -41,6 +48,8 @@ def setup_logging() -> None:
     else:  # no console (started as a windowed app): send stray output to the log file too
         sys.stdout = sys.stderr = open(LOG_FILE, "a", encoding="utf-8", buffering=1)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", handlers=handlers)
+    for handler in handlers:  # an API key never reaches the log or the terminal
+        handler.addFilter(KeyFilter())
     # Libraries: only their errors. Azure's sign-in chatter and one line per HTTP request add nothing;
     # the job log (excel-filler.job) says what the agent does.
     logging.getLogger("azure").setLevel(logging.ERROR)
@@ -50,6 +59,9 @@ def setup_logging() -> None:
         log.error("Unexpected error:\n%s", "".join(traceback.format_exception(kind, value, tb)))
     sys.excepthook = excepthook
     threading.excepthook = lambda args: excepthook(args.exc_type, args.exc_value, args.exc_traceback)
+
+
+ALLOWED_LINKS = ("https://console.anthropic.com/",)
 
 
 def free_port() -> int:
@@ -92,6 +104,12 @@ class WindowApi:
         chosen = (result[0] if isinstance(result, (list, tuple)) else result) if result else None
         return str(Path(chosen).parent) if chosen else None
 
+    def open_external(self, url: str) -> bool:
+        """Open a page in the default browser (a link in the window would replace the app itself)."""
+        if not url.startswith(ALLOWED_LINKS):
+            return False
+        return webbrowser.open(url)
+
 
 def open_dialog():
     import webview
@@ -127,10 +145,13 @@ def main() -> None:
     from coding_agent import session
 
     from .server import create_app
+    from .settings import Settings
 
+    settings = Settings()
+    settings.load_and_apply()  # a key saved earlier in Settings
     token = secrets.token_urlsafe(24)
     port = free_port()
-    config = uvicorn.Config(create_app(token), host="127.0.0.1", port=port, log_level="warning", log_config=None)
+    config = uvicorn.Config(create_app(token, settings=settings), host="127.0.0.1", port=port, log_level="warning", log_config=None)
     server = uvicorn.Server(config)
     threading.Thread(target=server.run, name="backend", daemon=True).start()
     deadline = time.time() + 20

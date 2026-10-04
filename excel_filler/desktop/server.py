@@ -20,15 +20,19 @@ import time
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from coding_agent import session
-from coding_agent.config import BACKUP_HOME
+import anthropic
+from coding_agent import active_provider, make_anthropic_client, session
+from coding_agent.config import BACKUP_HOME, DEFAULT_MODEL
+from coding_agent.errors import redact
 
 from .. import agent
 from .joblog import JobLog, log as job_log
+from .settings import Settings, valid_key
 from .webui import WebUI
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -152,6 +156,11 @@ class AnswerIn(BaseModel):
     value: str | None = None
 
 
+class KeyIn(BaseModel):
+    api_key: str
+    model: str = ""
+
+
 class ClientErrorIn(BaseModel):
     message: str
     stack: str | None = None
@@ -193,15 +202,42 @@ def open_file(path: Path) -> None:
 
 def connection_problem() -> str | None:
     """Why the agent cannot reach Claude yet, in plain words (None when the settings look complete)."""
-    if not os.environ.get("ANTHROPIC_FOUNDRY_ENDPOINT"):
-        return "The Claude endpoint is not set up (ANTHROPIC_FOUNDRY_ENDPOINT)."
+    if active_provider() is None:
+        return "Add your Anthropic API key in Settings to start."
     return None
 
 
-def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
+def test_key(api_key: str, model: str) -> None:
+    """One tiny call with this key, before it is saved. Raises HTTPException with a plain message."""
+    client = make_anthropic_client(api_key, max_retries=0, timeout=15)
+    try:
+        client.messages.create(model=model or DEFAULT_MODEL, max_tokens=1, messages=[{"role": "user", "content": "ping"}])
+    except (anthropic.AuthenticationError, anthropic.PermissionDeniedError):
+        raise HTTPException(401, "Anthropic did not accept this key. Check that you copied all of it.")
+    except anthropic.NotFoundError:
+        raise HTTPException(400, "That model is not available to this key. Choose another model, or the default.")
+    except anthropic.BadRequestError as e:
+        if "credit balance" in str(e).lower():
+            raise HTTPException(402, "The key is valid, but the account has no credit. Add credit at console.anthropic.com "
+                                     "(Plans & Billing), then try again.")
+        raise HTTPException(400, redact(f"Anthropic refused the test: {e.message}")[:300])
+    except (anthropic.APIConnectionError, anthropic.APITimeoutError) as e:
+        raise HTTPException(502, "Could not reach Anthropic. Check your internet connection, VPN or proxy, then try again.")
+    except anthropic.APIStatusError as e:
+        raise HTTPException(502, redact(f"Anthropic answered with an error (HTTP {e.status_code}). Try again in a moment.")[:300])
+
+
+def create_app(token: str, desktop: Desktop | None = None, settings: Settings | None = None) -> FastAPI:
     desktop = desktop or Desktop()
+    settings = settings or Settings()
     app = FastAPI(title="Excel filler", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.desktop = desktop
+    app.state.settings = settings
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request: Request, exc: RequestValidationError):
+        # FastAPI's default answer echoes the request body, which can hold the API key.
+        return JSONResponse({"detail": "The request was not valid."}, status_code=422)
 
     def check(request: Request) -> None:
         # Only this machine, only with the token handed to the window at launch.
@@ -216,6 +252,38 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     def get_state():
         return {**desktop.listing(), "busy": desktop.busy, "connection_problem": connection_problem(),
                 "pending": desktop.ui.pending_questions(), "auto": desktop.auto}
+
+    @app.get("/api/settings", dependencies=guarded)
+    def get_settings():
+        return settings.info()
+
+    @app.post("/api/settings", dependencies=guarded)
+    def save_settings(body: KeyIn):
+        """Test the key with one tiny call, then save it (Credential Manager) and use it from now on."""
+        key, model = body.api_key.strip(), body.model.strip()
+        if model not in {m["id"] for m in settings.info()["models"]}:
+            raise HTTPException(400, "Unknown model.")
+        if not valid_key(key):
+            raise HTTPException(400, "That does not look like an API key (it is one long line of letters and digits, "
+                                     "starting with sk-ant-).")
+        if desktop.busy:
+            raise HTTPException(409, "Wait for the current job to finish.")
+        test_key(key, model)  # outside the lock: it can take 15 s
+        with settings.lock:
+            if desktop.busy:
+                raise HTTPException(409, "Wait for the current job to finish.")
+            settings.save(key, model)
+        job_log.info("API key saved (ends with %s)", key[-4:])
+        return settings.info()
+
+    @app.delete("/api/settings/key", dependencies=guarded)
+    def remove_key():
+        with settings.lock:
+            if desktop.busy:
+                raise HTTPException(409, "Wait for the current job to finish.")
+            settings.remove()
+        job_log.info("API key removed")
+        return settings.info()
 
     @app.post("/api/auto", dependencies=guarded)
     def set_auto(body: AutoIn):
@@ -366,20 +434,24 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     def start_job(body: JobIn):
         if desktop.folder is None:
             raise HTTPException(400, "Choose a folder first.")
-        if problem := connection_problem():
-            raise HTTPException(400, problem)
         job_log.info("Fill %s from %d document(s)%s", body.workbook, len(body.documents),
                      " with instructions" if body.notes.strip() else "")
-        desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes, body.sheets),
-                    job_request(body.workbook, body.documents, body.notes, body.sheets))
+        with settings.lock:  # not while a key is being saved
+            if problem := connection_problem():
+                raise HTTPException(400, problem)
+            desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes, body.sheets),
+                        job_request(body.workbook, body.documents, body.notes, body.sheets))
         return {"started": True}
 
     @app.post("/api/followup", dependencies=guarded)
     def follow_up(body: TextIn):
         if desktop.folder is None or not body.text.strip():
             raise HTTPException(400, "Nothing to send.")
+        if problem := connection_problem():
+            raise HTTPException(400, problem)
         job_log.info("Follow-up request")
-        desktop.run(lambda: session.send(body.text.strip()), body.text.strip())
+        with settings.lock:
+            desktop.run(lambda: session.send(body.text.strip()), body.text.strip())
         return {"started": True}
 
     @app.post("/api/answer", dependencies=guarded)
@@ -399,7 +471,7 @@ def create_app(token: str, desktop: Desktop | None = None) -> FastAPI:
     @app.post("/api/client-error", dependencies=guarded)
     def client_error(body: ClientErrorIn):
         # An error in the window's code: logged, since the window itself may not be able to show it.
-        window_log.error("Window error: %s%s", body.message[:2000], f"\n{body.stack[:4000]}" if body.stack else "")
+        window_log.error("Window error: %s%s", redact(body.message[:2000]), f"\n{redact(body.stack[:4000])}" if body.stack else "")
         return {"ok": True}
 
     @app.websocket("/ws")

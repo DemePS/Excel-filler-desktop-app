@@ -36,6 +36,27 @@ The window's UI comes already built (`excel_filler/desktop/static/`), so running
 no Node.js. Only if you change the UI code in `frontend/`: `cd frontend && npm ci && npm run
 build`, and commit the updated `excel_filler/desktop/static/` with your change.
 
+## Claude access
+
+On first launch the window asks for your **Anthropic API key** (Settings, top right, later): it is tested with one tiny
+call, then kept in the Windows Credential Manager (never in a file, never in the log) and sent only to Anthropic. A key
+saved there is used instead of anything set by environment variables; **Remove key** goes back to them. People who use
+Azure / Microsoft Foundry set `ANTHROPIC_FOUNDRY_ENDPOINT` (and the deployment) in a `.env` as before and sign in with their
+Microsoft account.
+
+## Build the Windows app
+
+On Windows, from the project folder:
+
+```powershell
+uv sync --locked
+uv run --group build pyinstaller packaging/excel-filler.spec
+```
+
+The result is `dist\ExcelFiller\ExcelFiller.exe` with its `_internal` folder: zip the whole `ExcelFiller` folder to share it.
+If the window does not open, read the newest file in `%USERPROFILE%\.coding-agent\logs`. The recipe is untested on a clean
+PC: check that it starts on a machine without Python, and that the saved key survives a restart.
+
 ## Try it (terminal)
 
 ```bash
@@ -92,5 +113,5 @@ They run a whole filling job against a mocked Claude API through the real SDK an
 1. ~~Agent engine as a package (`coding_agent`), imported here~~
 2. ~~Desktop window: pick a folder, a workbook and documents; watch progress; approve cell
    changes and answer questions in the window.~~
-3. Sign-in: Microsoft account (Entra ID) or an API key kept in the OS keychain.
-4. Windows installer built by CI.
+3. ~~Sign-in: Microsoft account (Entra ID) or an API key kept in the OS keychain.~~
+4. Windows installer built by CI, code signing.

@@ -1,12 +1,12 @@
-import type { Listing, Sheet } from './types'
+import type { Listing, SettingsInfo, Sheet } from './types'
 
 // Talking to the local backend. Every request carries the per-launch token from the page URL.
 
 const token = new URLSearchParams(window.location.search).get('token') ?? ''
 
-async function call<T>(path: string, body?: unknown): Promise<T> {
+async function call<T>(path: string, body?: unknown, method?: string): Promise<T> {
   const response = await fetch(path, {
-    method: body === undefined ? 'GET' : 'POST',
+    method: method ?? (body === undefined ? 'GET' : 'POST'),
     headers: { 'content-type': 'application/json', 'x-token': token },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
@@ -29,6 +29,9 @@ export const api = {
   stop: () => call('/api/stop', {}),
   setAuto: (on: boolean) => call<{ auto: boolean }>('/api/auto', { on }),
   openInExcel: (name: string) => call('/api/open', { text: name }),
+  getSettings: () => call<SettingsInfo>('/api/settings'),
+  saveSettings: (api_key: string, model: string) => call<SettingsInfo>('/api/settings', { api_key, model }),
+  removeKey: () => call<SettingsInfo>('/api/settings/key', undefined, 'DELETE'),
   check: () => call<{ ok: boolean; message: string }>('/api/check'),
 }
 
@@ -61,6 +64,7 @@ type PyWebview = {
     pick_workbook: () => Promise<string | null>
     pick_documents: (folder: string) => Promise<string[]>
     pick_document_folder: (folder: string) => Promise<string | null>
+    open_external: (url: string) => Promise<boolean>
   }
 }
 
@@ -84,3 +88,15 @@ export async function pickDocumentFolder(folder: string): Promise<string | null>
   if (pywebview) return pywebview.api.pick_document_folder(folder)
   return window.prompt('Full path of the folder holding the documents, or of any document in it:')
 }
+
+export const KEYS_URL = 'https://console.anthropic.com/settings/keys'
+
+// A link in the window would replace the app itself: the desktop window opens it in the browser.
+export async function openExternal(url: string): Promise<boolean> {
+  const pywebview = native()
+  if (pywebview) return pywebview.api.open_external(url)
+  window.open(url, '_blank', 'noopener')
+  return true
+}
+
+export const hasNativeWindow = () => native() !== undefined
