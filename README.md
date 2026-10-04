@@ -1,7 +1,7 @@
 # Excel-filler-desktop-app
 
-Fill an Excel workbook from PDF documents with Claude (Azure / Microsoft Foundry), reviewing
-every change before it is saved.
+Fill an Excel workbook from PDF documents with Claude, reviewing every change before it is saved. It
+runs on your own Anthropic API key (entered in the window) or on Azure / Microsoft Foundry.
 
 You open the workbook and pick the documents (invoices, statements, scans): those next to the
 workbook, the documents of another folder instead (**Change folder…**; **Use the workbook's folder**
@@ -22,7 +22,9 @@ This project only adds:
 | `excel_filler/agent.py` | the tools Claude gets (read documents, read/write the workbook, ask you; no code execution, deletion or network), its instructions, and how a job is phrased |
 | `excel_filler/cli.py` | the `excel-filler` terminal command |
 | `excel_filler/desktop/` | the desktop window: a local FastAPI backend (127.0.0.1, per-launch token) running the agent in a worker thread, `WebUI` sending the agent's UI calls to the window over a WebSocket, and `app.py` opening a native window (pywebview) |
-| `frontend/` | the window's React UI: choose a folder, pick the workbook and documents, watch the work, approve cell changes, answer Claude's questions, ask for corrections |
+| `excel_filler/desktop/settings.py` | the Anthropic API key (Windows Credential Manager through `keyring`, session-only if there is none) and the chosen model; the key is tested with one call before it is saved |
+| `frontend/` | the window's React UI: choose a folder, pick the workbook and documents, watch the work, approve cell changes, answer Claude's questions, ask for corrections, and the Settings / first-run key screen |
+| `packaging/` | the PyInstaller recipe for the Windows app (see *Build the Windows app*) |
 
 ## Run the desktop app
 
@@ -38,11 +40,18 @@ build`, and commit the updated `excel_filler/desktop/static/` with your change.
 
 ## Claude access
 
-On first launch the window asks for your **Anthropic API key** (Settings, top right, later): it is tested with one tiny
-call, then kept in the Windows Credential Manager (never in a file, never in the log) and sent only to Anthropic. A key
-saved there is used instead of anything set by environment variables; **Remove key** goes back to them. People who use
-Azure / Microsoft Foundry set `ANTHROPIC_FOUNDRY_ENDPOINT` (and the deployment) in a `.env` as before and sign in with their
-Microsoft account.
+Two ways, in this order of precedence:
+
+1. **Your Anthropic API key** (get one at [console.anthropic.com](https://console.anthropic.com)). On first launch the
+   window asks for it; **Settings** (top right) changes it, picks the model, or removes the key. The key is tested with one
+   tiny call, then kept in the Windows Credential Manager: never in a file, never in the log, and sent only to Anthropic.
+   Where no secure storage exists it is kept for that run only and the dialog says so. Anthropic bills the key's owner
+   directly. **Remove key** goes back to the second way.
+2. **Azure / Microsoft Foundry**, set up in a `.env` file or the environment (see *Try it (terminal)* for the variables).
+   A key saved in Settings is used instead of a Foundry setup while it exists.
+
+The same engine reads `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` from the environment when no Foundry endpoint is set
+(handy for the terminal command); a key saved in Settings wins over them.
 
 ## Build the Windows app
 
@@ -64,13 +73,16 @@ uv sync
 uv run excel-filler -d path/to/folder costs.xlsx invoice1.pdf invoice2.pdf -n "amounts excl. VAT, one row per line item"
 ```
 
-Configuration (environment variables or a `.env` file in the folder you run from):
+Configuration (environment variables or a `.env` file in the folder you run from). The terminal command has no
+Settings screen: it uses these.
 
 | Variable | Meaning |
 |---|---|
-| `ANTHROPIC_FOUNDRY_ENDPOINT` | `https://<resource>.services.ai.azure.com/anthropic` |
-| `ANTHROPIC_FOUNDRY_API_KEY` | API key; leave unset to sign in with your Microsoft work account (below) |
-| `ANTHROPIC_FOUNDRY_DEPLOYMENT` | your Claude deployment name |
+| `ANTHROPIC_API_KEY` | your Anthropic API key (used when no Foundry endpoint is set) |
+| `ANTHROPIC_MODEL` | a model ID (default `claude-opus-5`) |
+| `ANTHROPIC_FOUNDRY_ENDPOINT` | `https://<resource>.services.ai.azure.com/anthropic` (Foundry; wins over `ANTHROPIC_API_KEY`) |
+| `ANTHROPIC_FOUNDRY_API_KEY` | Foundry API key; leave unset to sign in with your Microsoft work account (below) |
+| `ANTHROPIC_FOUNDRY_DEPLOYMENT` | your Claude deployment name (Foundry) |
 
 **Signing in** (no API key): nothing to install or type. On a company Windows PC the app uses the
 account signed into Windows. Otherwise the Microsoft sign-in page opens in the browser, once; the
@@ -106,12 +118,16 @@ version, run `uv lock` (or `npm install` in `frontend/`), run the tests, and com
 uv run pytest -q
 ```
 
-They run a whole filling job against a mocked Claude API through the real SDK and tools.
+They run a whole filling job against a mocked Claude API through the real SDK and tools, and the Settings
+endpoints (a failing key test saves nothing, the key never appears in a reply, the log or an error, a saved key is
+applied at startup).
 
 ## Roadmap
 
 1. ~~Agent engine as a package (`coding_agent`), imported here~~
 2. ~~Desktop window: pick a folder, a workbook and documents; watch progress; approve cell
    changes and answer questions in the window.~~
-3. ~~Sign-in: Microsoft account (Entra ID) or an API key kept in the OS keychain.~~
-4. Windows installer built by CI, code signing.
+3. ~~Claude access: your Anthropic API key (kept in the Windows Credential Manager) or Azure / Foundry.~~
+4. ~~A PyInstaller recipe for the Windows app~~ (written, not yet run on a clean Windows PC).
+5. Windows installer, built by CI, and code signing.
+6. Selling it: licence activation, terms, a website.
