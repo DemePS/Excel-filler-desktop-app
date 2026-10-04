@@ -24,6 +24,8 @@ excel-filler-desktop = "excel_filler.desktop.app:main"
 
 [dependency-groups]
 dev = ["pytest==9.1.1"]
+# The downloadable app (packaging/excel-filler.spec): `uv run --group build pyinstaller packaging/excel-filler.spec`
+build = ["pyinstaller==6.22.3", "pyinstaller-hooks-contrib==2026.7"]
 
 [build-system]
 requires = ["hatchling==1.32.4"]
