@@ -79,6 +79,8 @@ def open_folder(folder: str | Path, ui: UI, resume: bool = False, auto: bool = F
     register_office_tools()  # read_word
     path = session.open_project(folder, ui=ui, tools=TOOLS, system_prompt=SYSTEM_PROMPT, resume=resume, auto=auto, excel_first=True)
     set_auto(auto)
+    # Guardrails in the harness, not only in the instructions: a formula can neither be written nor changed or cleared.
+    state.excel_protect_formulas = True
     if (reference := knowledge_folder()) is not None:
         session.add_read_folder(reference)  # readable and searchable, never writable, and not a document to fill from
     return path
@@ -125,6 +127,7 @@ def fill(workbook: str, documents: list[str], notes: str = "", sheets: list[str]
     """Run one filling job to completion. False if it failed (the reason was shown in the UI).
     With sheets, only those sheets of the workbook can be changed (also in follow-up requests)."""
     path = (state.workspace / workbook).resolve()
+    state.excel_writable = {path}  # the only workbook this job can change (enforced by the engine from CodeAgent e948a7d on)
     if sheets:
         state.excel_edit_sheets[path] = set(sheets)
     else:
