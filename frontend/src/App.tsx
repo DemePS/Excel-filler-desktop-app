@@ -4,6 +4,7 @@ import { Activity } from './components/Activity'
 import { JobPanel } from './components/JobPanel'
 import { QuestionDialog } from './components/QuestionDialog'
 import { SettingsDialog } from './components/SettingsDialog'
+import { ChartDialog } from './components/ChartDialog'
 import { Splitter, useSidebarWidth } from './components/Splitter'
 import { LangProvider, useLang } from './i18n'
 import { answered, apply, initialState, type State } from './state'
@@ -48,6 +49,7 @@ function AppContent() {
   // Settings: the API key. Nothing is set up yet (first run): the dialog opens by itself and cannot be skipped.
   const [settings, setSettings] = useState<SettingsInfo | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [chartOpen, setChartOpen] = useState(false)
   useEffect(() => {
     if (!connected) return
     api.getSettings().then((info) => { setSettings(info); if (!info.configured) setSettingsOpen(true) }).catch(() => {})
@@ -174,6 +176,7 @@ function AppContent() {
         )}
         <button className="lang-switch" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} aria-label={t('Language')}
           title={t(lang === 'fr' ? 'Switch to English' : 'Switch to French')}>{lang === 'fr' ? 'English' : 'Français'}</button>
+        <button onClick={() => setChartOpen(true)} disabled={busy} title={t('Replace the chart of accounts the assistant uses')}>{t('Update chart of accounts')}</button>
         <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title={t('Anthropic API key and model')}>{t('Settings')}</button>
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy || !!state.problem}>
           {listing.folder ? t('Open another workbook…') : t('Open workbook…')}
@@ -213,6 +216,7 @@ function AppContent() {
       {settingsOpen && settings && !question && (
         <SettingsDialog info={settings} firstRun={!settings.configured} onClose={() => setSettingsOpen(false)} onChanged={settingsChanged} />
       )}
+      {chartOpen && !question && <ChartDialog onClose={() => setChartOpen(false)} />}
       {question && <QuestionDialog question={question} onAnswer={(value) => run(async () => {
         await api.answer(question.id, value)
         if (question.kind === 'ask' && value) dispatch({ kind: 'you', text: value })

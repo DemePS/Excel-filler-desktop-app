@@ -26,11 +26,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import anthropic
-from coding_agent import active_provider, make_anthropic_client, session
+from coding_agent import active_provider, make_anthropic_client, session, state
 from coding_agent.config import BACKUP_HOME, DEFAULT_MODEL
 from coding_agent.errors import redact
 
-from .. import agent
+from .. import agent, chart
 from . import copies, picker
 from .joblog import JobLog, log as job_log
 from .settings import Settings, valid_key
@@ -334,6 +334,29 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
             return {"paths": picker.pick(body.kind, body.folder)}
         except RuntimeError as e:
             raise HTTPException(502, str(e))
+
+    @app.get("/api/chart-of-accounts", dependencies=guarded)
+    def chart_of_accounts():
+        """The file the agent looks accounts up in (None until one is installed)."""
+        folder = agent.knowledge_target()
+        file = chart.current(folder)
+        return {"file": file.name if file else None, "folder": str(folder),
+                "modified": file.stat().st_mtime if file else None}
+
+    @app.post("/api/chart-of-accounts", dependencies=guarded)
+    def update_chart_of_accounts(body: FolderIn):
+        """Replace the chart of accounts of the knowledge folder by the chosen file (indexed at once)."""
+        if desktop.busy:
+            raise HTTPException(409, "A job is running: update the chart of accounts when it is finished.")
+        folder = agent.knowledge_target()
+        try:
+            installed = chart.install(body.path, folder)
+        except chart.ChartError as e:
+            raise HTTPException(400, str(e))
+        if state.workspace is not None:
+            session.add_read_folder(folder)  # a session already open: the agent can read it from the next instruction
+        job_log.info("Chart of accounts updated: %s", installed.name)
+        return chart_of_accounts()
 
     @app.post("/api/folder", dependencies=guarded)
     def open_folder(body: FolderIn):

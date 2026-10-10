@@ -42,6 +42,17 @@ const FR: Record<string, string> = {
   'Language': 'Langue',
   'Switch to French': 'Passer en français',
   'Switch to English': 'Passer en anglais',
+  'Update chart of accounts': 'Mettre à jour le plan comptable',
+  'Replace the chart of accounts the assistant uses': 'Remplacer le plan comptable utilisé par l’assistant',
+  'Chart of accounts': 'Plan comptable',
+  'The assistant looks account numbers up in this file and never writes them from memory. Choose the new version (PDF or text): it replaces the current one.':
+    'L’assistant cherche les numéros de compte dans ce fichier et ne les écrit jamais de mémoire. Choisissez la nouvelle version (PDF ou texte) : elle remplace l’actuelle.',
+  updated: 'mis à jour le',
+  'No chart of accounts yet.': 'Aucun plan comptable pour l’instant.',
+  'Folder:': 'Dossier :',
+  'Reading the file and preparing the search…': 'Lecture du fichier et préparation de la recherche…',
+  'Chart of accounts updated.': 'Plan comptable mis à jour.',
+  'Choose a file…': 'Choisir un fichier…',
   // job panel
   'Open the workbook to fill to start.': 'Ouvrez le classeur à remplir pour commencer.',
   Workbook: 'Classeur',

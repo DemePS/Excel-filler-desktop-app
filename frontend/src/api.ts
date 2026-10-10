@@ -63,6 +63,7 @@ export function connectEvents(onEvent: (event: unknown) => void, onClose: () => 
 type PyWebview = {
   api: {
     pick_workbook: () => Promise<string | null>
+    pick_chart: () => Promise<string | null>
     pick_documents: (folder: string) => Promise<string[]>
     pick_document_folder: (folder: string) => Promise<string | null>
     open_external: (url: string) => Promise<boolean>
@@ -73,7 +74,7 @@ const native = () => (window as unknown as { pywebview?: PyWebview }).pywebview
 
 // In a browser (no native window) the backend, which runs on this machine, can open the system's dialog
 // (Linux: zenity). When it cannot, the person types the path.
-async function backendDialog(kind: 'workbook' | 'documents' | 'folder', folder?: string): Promise<string[] | null> {
+async function backendDialog(kind: 'workbook' | 'documents' | 'folder' | 'chart', folder?: string): Promise<string[] | null> {
   try {
     const info = await call<{ available: boolean }>('/api/pick/available')
     if (!info.available) return null
@@ -90,6 +91,18 @@ export async function pickWorkbook(): Promise<string | null> {
   if (chosen) return chosen[0] ?? null
   return window.prompt('Full path of the Excel workbook to fill (.xlsx or .xlsm):')
 }
+
+export async function pickChart(): Promise<string | null> {
+  const pywebview = native()
+  if (pywebview) return pywebview.api.pick_chart()
+  const chosen = await backendDialog('chart')
+  if (chosen) return chosen[0] ?? null
+  return window.prompt('Full path of the chart of accounts (PDF or text):')
+}
+
+export type ChartInfo = { file: string | null; folder: string; modified: number | null }
+export const getChart = () => call<ChartInfo>('/api/chart-of-accounts')
+export const updateChart = (path: string) => call<ChartInfo>('/api/chart-of-accounts', { path })
 
 export async function pickDocuments(folder: string): Promise<string[]> {
   const pywebview = native()

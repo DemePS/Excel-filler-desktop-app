@@ -22,7 +22,8 @@ from pathlib import Path
 TIMEOUT = 600  # seconds the person has to choose before the dialog is closed
 SEPARATOR = "\n"  # zenity's default "|" can be part of a path
 
-TITLES = {"workbook": "Choose the Excel workbook to fill", "documents": "Choose the documents", "folder": "Choose the folder of the documents"}
+TITLES = {"workbook": "Choose the Excel workbook to fill", "documents": "Choose the documents", "folder": "Choose the folder of the documents",
+          "chart": "Choose the chart of accounts (PDF or text)"}
 
 # The tkinter dialog, as a program for `python -c`: argv = kind, title, start folder. One path per line.
 TK_PROGRAM = """
@@ -41,6 +42,8 @@ if start:
     options["initialdir"] = start
 if kind == "workbook":
     chosen = [filedialog.askopenfilename(filetypes=[("Excel workbooks", "*.xlsx *.xlsm"), ("All files", "*")], **options)]
+elif kind == "chart":
+    chosen = [filedialog.askopenfilename(filetypes=[("Chart of accounts", "*.pdf *.txt *.md"), ("All files", "*")], **options)]
 elif kind == "documents":
     chosen = list(filedialog.askopenfilenames(**options))
 else:
@@ -85,6 +88,8 @@ def command(kind: str, start: str | None = None, which: str = "zenity") -> list[
     cmd = ["zenity", "--file-selection", f"--title={TITLES[kind]}"]
     if kind == "workbook":
         cmd += ["--file-filter=Excel workbooks | *.xlsx *.xlsm", "--file-filter=All files | *"]
+    elif kind == "chart":
+        cmd += ["--file-filter=Chart of accounts | *.pdf *.txt *.md", "--file-filter=All files | *"]
     elif kind == "documents":
         cmd += ["--multiple", f"--separator={SEPARATOR}"]
     else:

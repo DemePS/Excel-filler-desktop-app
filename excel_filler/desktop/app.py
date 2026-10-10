@@ -88,6 +88,12 @@ class WindowApi:
             open_dialog(), file_types=("Excel workbooks (*.xlsx;*.xlsm)", "All files (*.*)"))
         return result[0] if result else None
 
+    def pick_chart(self) -> str | None:
+        """An "Open" dialog showing PDF and text files: the new chart of accounts."""
+        result = self._window.create_file_dialog(
+            open_dialog(), file_types=("Chart of accounts (*.pdf;*.txt;*.md)", "All files (*.*)"))
+        return result[0] if result else None
+
     def pick_documents(self, folder: str) -> list[str]:
         """An "Open" dialog in the workbook's folder; several PDFs or images can be selected."""
         result = self._window.create_file_dialog(
