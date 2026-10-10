@@ -282,6 +282,12 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
             raise HTTPException(400, f"Keep the question under {help_guide.MAX_QUESTION} characters.")
         if active_provider() is None:
             raise HTTPException(409, connection_problem() or "Add your API key in Settings first.")
+        if desktop.folder is not None:
+            # The agent of the job answers, in its own conversation: it knows what it read and why it wrote a value.
+            job_log.info("Help question")
+            with settings.lock:
+                desktop.run(lambda: agent.help_question(question, body.language), question)
+            return {"started": True}
         from coding_agent.config import get_model
         try:
             answer = help_guide.ask(session._get_client(), get_model(), question, body.history, body.language)

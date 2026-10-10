@@ -35,7 +35,7 @@ export const api = {
   removeKey: () => call<SettingsInfo>('/api/settings/key', undefined, 'DELETE'),
   check: () => call<{ ok: boolean; message: string }>('/api/check'),
   help: (question: string, history: { role: string; text: string }[], language: string) =>
-    call<{ answer: string }>('/api/help', { question, history, language }),
+    call<{ answer?: string; started?: boolean }>('/api/help', { question, history, language }),
 }
 
 // Sends an error of the window's code to the backend, which writes it to the log file.

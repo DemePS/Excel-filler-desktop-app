@@ -1,7 +1,8 @@
-"""The Help button: questions about using ComptaIA, answered by the same model as the filling jobs.
+"""The Help button: questions about ComptaIA and about what it did, answered by the agent of the job.
 
-A plain call with a description of the application: no tools, no workbook, no documents, so it can neither
-read nor change anything of the person's.
+With a folder open, the question goes to the same session as the filling (same agent, same conversation,
+so it can explain what it read and why it wrote a value); no workbook can be changed during that turn.
+Before any folder is open there is no job to ask about: a plain call with the guide answers.
 """
 
 from __future__ import annotations
@@ -10,14 +11,16 @@ MAX_QUESTION = 1000   # characters of one question
 MAX_TURNS = 8         # earlier messages kept, so a long chat does not grow without end
 MAX_ANSWER_TOKENS = 700
 
-GUIDE = """\
+INTRO = """\
 You are the help of ComptaIA, a desktop application that fills a person's Excel templates from accounting
 documents. Answer the person's questions about USING the application, briefly (a few sentences or a short
 list), in the language of their question. If the question is about something else (general accounting
 questions, writing, code, other software), say that you only help with using ComptaIA and give the
 nearest thing the application can do. Never invent a feature: if the guide below does not say it, say
 that ComptaIA does not do it or that you do not know. You cannot see the person's files or workbook.
+"""
 
+GUIDE = """\
 How ComptaIA works
 - "Open workbook…" picks the Excel template (.xlsx or .xlsm; an old .xls must first be saved as .xlsx).
   The documents are the files in the workbook's folder; "Change folder…", "Add folder…" and "Add files…"
@@ -49,6 +52,14 @@ How ComptaIA works
 """
 
 
+def instruction(question: str, language: str = "") -> str:
+    """What the job's agent receives for a help question: the question, the guide, and the rule that it only answers."""
+    name = {"fr": "French", "en": "English"}.get(language)
+    return (f"Help question from the person (not a request to change anything: do not edit any workbook). Answer it "
+            f"briefly, from what you did in this job and from the guide below.{f' Answer in {name}.' if name else ''}\n\n"
+            f"Question: {question[:MAX_QUESTION]}\n\nGuide of the application:\n{GUIDE}")
+
+
 def clean_history(history: list[dict]) -> list[dict]:
     """The earlier turns that are kept: roles user / assistant alternating, text only, bounded."""
     kept = []
@@ -69,7 +80,7 @@ def clean_history(history: list[dict]) -> list[dict]:
 
 def ask(client, model: str, question: str, history: list[dict], language: str = "") -> str:
     """One answer of the model to a question about the application."""
-    system = GUIDE + (f"\nAnswer in {'French' if language == 'fr' else 'English'}.\n" if language in ("fr", "en") else "")
+    system = INTRO + GUIDE + (f"\nAnswer in {'French' if language == 'fr' else 'English'}.\n" if language in ("fr", "en") else "")
     messages = clean_history(history) + [{"role": "user", "content": question[:MAX_QUESTION]}]
     if len(messages) > 1 and messages[-2]["role"] == "user":  # two user turns in a row: merge
         messages[-2]["content"] += "\n" + messages.pop()["content"]
