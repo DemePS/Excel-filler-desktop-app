@@ -148,10 +148,12 @@ class JobIn(BaseModel):
     notes: str = ""
     sheets: list[str] = []  # the sheets to fill; none: Claude finds them
     on_copy: bool = False  # fill a copy of the workbook, next to it: the original is not changed
+    language: str = ""  # the window's language ("fr"): the agent writes its summary and questions in it
 
 
 class TextIn(BaseModel):
     text: str
+    language: str = ""
 
 
 class AutoIn(BaseModel):
@@ -474,7 +476,7 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
                 job_log.info("Working on a copy: %s", workbook)
                 desktop.workbook = workbook
                 desktop.ui.emit({"type": "listing", **desktop.listing()})
-            desktop.run(lambda: agent.fill(workbook, body.documents, body.notes, body.sheets),
+            desktop.run(lambda: agent.fill(workbook, body.documents, body.notes, body.sheets, body.language),
                         job_request(workbook, body.documents, body.notes, body.sheets))
         return {"started": True, "workbook": workbook}
 
@@ -486,7 +488,8 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
             raise HTTPException(400, problem)
         job_log.info("Follow-up request")
         with settings.lock:
-            desktop.run(lambda: session.send(body.text.strip()), body.text.strip())
+            hint = agent.language_hint(body.language)
+            desktop.run(lambda: session.send(body.text.strip() + (f"\n\n({hint})" if hint else "")), body.text.strip())
         return {"started": True}
 
     @app.post("/api/answer", dependencies=guarded)

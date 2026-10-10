@@ -2,6 +2,7 @@
 // pasted into Word, Outlook or Excel) and its plain text (Markdown) for anything else.
 
 import { useRef, useState } from 'react'
+import { useT } from '../i18n'
 import { Markdown } from './Markdown'
 
 async function copy(text: string, html: string): Promise<void> {
@@ -28,17 +29,18 @@ async function copy(text: string, html: string): Promise<void> {
 }
 
 export function ClaudeMessage({ text }: { text: string }) {
+  const t = useT()
   const body = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
   return (
     <div className="claude">
-      <button type="button" className="copy" aria-label="Copy this message" title="Copy this message"
+      <button type="button" className="copy" aria-label={t('Copy this message')} title={t('Copy this message')}
         onClick={async () => {
           await copy(text, body.current?.innerHTML ?? text)
           setCopied(true)
           window.setTimeout(() => setCopied(false), 1500)
         }}>
-        {copied ? 'Copied ✓' : 'Copy'}
+        {copied ? t('Copied ✓') : t('Copy')}
       </button>
       <div ref={body}><Markdown text={text} /></div>
     </div>

@@ -5,6 +5,7 @@ import { JobPanel } from './components/JobPanel'
 import { QuestionDialog } from './components/QuestionDialog'
 import { SettingsDialog } from './components/SettingsDialog'
 import { Splitter, useSidebarWidth } from './components/Splitter'
+import { LangProvider, useLang } from './i18n'
 import { answered, apply, initialState, type State } from './state'
 import type { AgentEvent, Hello, Listing, SettingsInfo } from './types'
 
@@ -23,7 +24,8 @@ function reducer(state: State, action: Action): State {
   return apply(state, action.event)
 }
 
-export default function App() {
+function AppContent() {
+  const { lang, setLang, t } = useLang()
   const [state, dispatch] = useReducer(reducer, initialState)
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,7 +55,7 @@ export default function App() {
   const settingsChanged = (info: SettingsInfo) => {
     setSettings(info)
     setSettingsOpen(!info.configured)
-    dispatch({ kind: 'problem', problem: info.configured ? null : 'Add your Anthropic API key in Settings to start.' })
+    dispatch({ kind: 'problem', problem: info.configured ? null : t('Add your Anthropic API key in Settings to start.') })
     checkConnection()
   }
 
@@ -162,46 +164,48 @@ export default function App() {
     <div className="app">
       <header>
         <div className="brand"><span className="logo" aria-hidden /> Excel filler</div>
-        <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? 'No workbook open'}</div>
+        <div className="folder" title={listing.folder ?? ''}>{listing.folder ?? t('No workbook open')}</div>
         {/* Nothing while the startup check runs: only its result (connected, or an error). */}
-        {state.auto && <span className="auto-tag" title="Changes are applied without asking; a backup of the workbook is kept">Auto mode</span>}
+        {state.auto && <span className="auto-tag" title={t('Changes are applied without asking; a backup of the workbook is kept')}>{t('Auto mode')}</span>}
         {claude.state !== 'checking' && !state.problem && (
-          <span className={`claude-status ${claude.state}`} title={claude.message}>
-            {claude.state === 'ok' ? 'Claude connected' : 'Claude unreachable'}
+          <span className={`claude-status ${claude.state}`} title={t(claude.message)}>
+            {claude.state === 'ok' ? t('Claude connected') : t('Claude unreachable')}
           </span>
         )}
-        <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title="Anthropic API key and model">Settings</button>
+        <button className="lang-switch" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} aria-label={t('Language')}
+          title={t(lang === 'fr' ? 'Switch to English' : 'Switch to French')}>{lang === 'fr' ? 'English' : 'Français'}</button>
+        <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title={t('Anthropic API key and model')}>{t('Settings')}</button>
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy || !!state.problem}>
-          {listing.folder ? 'Open another workbook…' : 'Open workbook…'}
+          {listing.folder ? t('Open another workbook…') : t('Open workbook…')}
         </button>
       </header>
 
-      {!connected && <div className="banner warning">Connecting to the agent…</div>}
+      {!connected && <div className="banner warning">{t('Connecting to the agent…')}</div>}
       {claude.state === 'failed' && !state.problem && (
         <div className="banner error" role="alert">
-          <b>Claude cannot be reached.</b> {claude.message}
-          <button className="link" onClick={checkConnection}>Retry</button>
+          <b>{t('Claude cannot be reached.')}</b> {claude.message}
+          <button className="link" onClick={checkConnection}>{t('Retry')}</button>
         </div>
       )}
-      {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>Dismiss</button></div>}
+      {error && <div className="banner error" role="alert">{error}<button className="link" onClick={() => setError(null)}>{t('Dismiss')}</button></div>}
 
       <main style={{ gridTemplateColumns: `${sidebarWidth}px auto minmax(0, 1fr)` }}>
         <JobPanel listing={listing} busy={busy} auto={state.auto} onAuto={(on) => run(() => api.setAuto(on))} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder}
           onChangeDocumentFolder={changeDocumentFolder} onResetDocumentFolder={resetDocumentFolder} selection={selection}
-          onFill={(workbook, documents, notes, sheets, copy) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes, sheets, copy) })} />
+          onFill={(workbook, documents, notes, sheets, copy) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes, sheets, copy, lang) })} />
         <Splitter width={sidebarWidth} onResize={setSidebarWidth} />
         <section className="feed">
           <Activity items={state.items} busy={busy} activity={stopping ? 'Stopping…' : state.activity} onOpen={(name) => run(() => api.openInExcel(name))} />
-          {awaitingReply && <div className="reply-hint" role="status">Claude asked you a question: answer it below.</div>}
+          {awaitingReply && <div className="reply-hint" role="status">{t('Claude asked you a question: answer it below.')}</div>}
           <form className={`composer${awaitingReply ? ' awaiting' : ''}`} onSubmit={(e) => {
             e.preventDefault()
-            if (followUp.trim()) run(async () => { await api.followUp(followUp); setFollowUp('') })
+            if (followUp.trim()) run(async () => { await api.followUp(followUp, lang); setFollowUp('') })
           }}>
-            <input ref={reply} placeholder={awaitingReply ? 'Your answer…' : listing.folder ? 'Ask for a correction, e.g. “use the invoice date, not the due date”' : ''}
-              value={followUp} onChange={(e) => setFollowUp(e.target.value)} disabled={!listing.folder || busy} aria-label="Follow-up request" />
+            <input ref={reply} placeholder={awaitingReply ? t('Your answer…') : listing.folder ? t('Ask for a correction, e.g. “use the invoice date, not the due date”') : ''}
+              value={followUp} onChange={(e) => setFollowUp(e.target.value)} disabled={!listing.folder || busy} aria-label={t('Follow-up request')} />
             {busy
-              ? <button type="button" className="danger" disabled={stopping} onClick={() => { setStopping(true); run(api.stop) }}>{stopping ? 'Stopping…' : 'Stop'}</button>
-              : <button type="submit" disabled={!followUp.trim()}>Send</button>}
+              ? <button type="button" className="danger" disabled={stopping} onClick={() => { setStopping(true); run(api.stop) }}>{stopping ? t('Stopping…') : t('Stop')}</button>
+              : <button type="submit" disabled={!followUp.trim()}>{t('Send')}</button>}
           </form>
         </section>
       </main>
@@ -214,5 +218,13 @@ export default function App() {
         if (question.kind === 'ask' && value) dispatch({ kind: 'you', text: value })
       })} />}
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <LangProvider>
+      <AppContent />
+    </LangProvider>
   )
 }

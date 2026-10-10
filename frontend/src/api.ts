@@ -22,10 +22,10 @@ export const api = {
   addDocumentFolder: (path: string) => call<Listing & { added: string[] }>('/api/document-folder', { path }),
   changeDocumentFolder: (path: string) => call<Listing & { added: string[] }>('/api/document-folder/change', { path }),
   resetDocumentFolder: () => call<Listing>('/api/document-folder/reset', {}),
-  startJob: (workbook: string, documents: string[], notes: string, sheets: string[], copy: boolean) =>
-    call<{ started: boolean; workbook: string }>('/api/job', { workbook, documents, notes, sheets, on_copy: copy }),
+  startJob: (workbook: string, documents: string[], notes: string, sheets: string[], copy: boolean, language: string) =>
+    call<{ started: boolean; workbook: string }>('/api/job', { workbook, documents, notes, sheets, on_copy: copy, language }),
   sheets: (workbook: string) => call<{ sheets: Sheet[] }>(`/api/sheets?workbook=${encodeURIComponent(workbook)}`),
-  followUp: (text: string) => call('/api/followup', { text }),
+  followUp: (text: string, language: string) => call('/api/followup', { text, language }),
   answer: (id: string, value: string | null) => call('/api/answer', { id, value }),
   stop: () => call('/api/stop', {}),
   setAuto: (on: boolean) => call<{ auto: boolean }>('/api/auto', { on }),

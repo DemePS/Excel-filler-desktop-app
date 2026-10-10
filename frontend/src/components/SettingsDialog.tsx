@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { api, hasNativeWindow, KEYS_URL, openExternal } from '../api'
+import { useT } from '../i18n'
 import type { SettingsInfo } from '../types'
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 }
 
 export function SettingsDialog({ info, firstRun, onClose, onChanged }: Props) {
+  const t = useT()
   const [key, setKey] = useState('')
   const [model, setModel] = useState(info.model)
   const [show, setShow] = useState(false)
@@ -54,35 +56,35 @@ export function SettingsDialog({ info, firstRun, onClose, onChanged }: Props) {
     <div className="backdrop">
       <div className="dialog settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <form onSubmit={(e) => { e.preventDefault(); if (key.trim() && !busy) save() }} autoComplete="off">
-          <h2 id="settings-title">{firstRun ? 'Add your Anthropic API key' : 'Settings'}</h2>
+          <h2 id="settings-title">{firstRun ? t('Add your Anthropic API key') : t('Settings')}</h2>
           <p className="hint">
-            Excel filler uses Claude through your own Anthropic account; Anthropic bills you directly for what you use.{' '}
+            {t('Excel filler uses Claude through your own Anthropic account; Anthropic bills you directly for what you use.')}{' '}
             {hasNativeWindow()
-              ? <button type="button" className="link" onClick={() => openExternal(KEYS_URL)}>Get a key</button>
-              : <>Get a key at <code>{KEYS_URL}</code></>}
+              ? <button type="button" className="link" onClick={() => openExternal(KEYS_URL)}>{t('Get a key')}</button>
+              : <>{t('Get a key at')} <code>{KEYS_URL}</code></>}
           </p>
-          {hasKey && <p className="hint">A key ending in <b>{info.key_hint}</b> is saved. Paste a new one to replace it.</p>}
-          {info.source === 'foundry' && <p className="hint">Currently using the Azure Foundry setup of this PC. A key saved here is used instead.</p>}
-          <label htmlFor="api-key">API key</label>
+          {hasKey && <p className="hint">{t('A key ending in')} <b>{info.key_hint}</b> {t('is saved. Paste a new one to replace it.')}</p>}
+          {info.source === 'foundry' && <p className="hint">{t('Currently using the Azure Foundry setup of this PC. A key saved here is used instead.')}</p>}
+          <label htmlFor="api-key">{t('API key')}</label>
           <div className="key-row">
             <input id="api-key" ref={input} type={show ? 'text' : 'password'} value={key} onChange={(e) => setKey(e.target.value)}
               placeholder="sk-ant-…" autoComplete="new-password" spellCheck={false} autoCapitalize="off" />
-            <button type="button" onClick={() => setShow(!show)} aria-pressed={show}>{show ? 'Hide' : 'Show'}</button>
+            <button type="button" onClick={() => setShow(!show)} aria-pressed={show}>{show ? t('Hide') : t('Show')}</button>
           </div>
-          <label htmlFor="model">Model</label>
+          <label htmlFor="model">{t('Model')}</label>
           <select id="model" value={model} onChange={(e) => setModel(e.target.value)}>
-            {info.models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            {info.models.map((m) => <option key={m.id} value={m.id}>{t(m.label)}</option>)}
           </select>
           <p className="hint">
             {info.storage === 'credential-manager'
-              ? 'The key is stored for your Windows account (Credential Manager) and sent only to Anthropic.'
-              : <b>This PC has no secure storage for keys: the key will not be remembered after you close the app.</b>}
+              ? t('The key is stored for your Windows account (Credential Manager) and sent only to Anthropic.')
+              : <b>{t('This PC has no secure storage for keys: the key will not be remembered after you close the app.')}</b>}
           </p>
           {error && <div className="banner error" role="alert">{error}</div>}
           <div className="actions">
-            {hasKey && <button type="button" className="danger" disabled={busy} onClick={remove}>Remove key</button>}
-            {!firstRun && <button type="button" onClick={close} disabled={busy}>Close</button>}
-            <button type="submit" className="primary" disabled={busy || !key.trim()}>{busy ? 'Testing…' : 'Test and save'}</button>
+            {hasKey && <button type="button" className="danger" disabled={busy} onClick={remove}>{t('Remove key')}</button>}
+            {!firstRun && <button type="button" onClick={close} disabled={busy}>{t('Close')}</button>}
+            <button type="submit" className="primary" disabled={busy || !key.trim()}>{busy ? t('Testing…') : t('Test and save')}</button>
           </div>
         </form>
       </div>

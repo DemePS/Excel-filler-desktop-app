@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
+import { useT } from '../i18n'
 import type { Listing, Sheet } from '../types'
 
 type Props = {
@@ -32,6 +33,7 @@ function DocumentName({ path }: { path: string }) {
 }
 
 export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentFolder, onChangeDocumentFolder, onResetDocumentFolder, selection, auto, onAuto }: Props) {
+  const t = useT()
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
@@ -71,7 +73,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
     if (selection) setDocuments(selection.documents)
   }, [selection])
 
-  if (!listing.folder) return <aside className="job"><p className="muted">Open the workbook to fill to start.</p></aside>
+  if (!listing.folder) return <aside className="job"><p className="muted">{t('Open the workbook to fill to start.')}</p></aside>
 
   // Ticks or unticks every document shown (all of them, or those matching the filter).
   const words = filter.toLowerCase().split(/\s+/).filter(Boolean)
@@ -87,57 +89,57 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
   return (
     <aside className="job">
       <section className="job-section">
-        <label htmlFor="workbook" className="section-title">Workbook</label>
+        <label htmlFor="workbook" className="section-title">{t('Workbook')}</label>
         {listing.workbooks.length ? (
           <select id="workbook" value={workbook} onChange={(e) => setWorkbook(e.target.value)}>
-            <option value="" disabled>Choose a workbook…</option>
+            <option value="" disabled>{t('Choose a workbook…')}</option>
             {listing.workbooks.map((w) => <option key={w}>{w}</option>)}
           </select>
         ) : (
-          <p className="muted">No .xlsx or .xlsm file in this folder.</p>
+          <p className="muted">{t('No .xlsx or .xlsm file in this folder.')}</p>
         )}
         {sheets.length > 1 && (
           <details className="fold">
-            <summary>Sheets: <span className={chosen.length ? '' : 'muted'}>{chosen.length ? chosen.join(', ') : 'Claude decides'}</span></summary>
+            <summary>{t('Sheets:')} <span className={chosen.length ? '' : 'muted'}>{chosen.length ? chosen.join(', ') : t('Claude decides')}</span></summary>
             <div className="sheets">
               {sheets.map((s) => (
-                <label key={s.name} className="check" title={`${s.rows} rows × ${s.cols} columns`}>
+                <label key={s.name} className="check" title={t('{rows} rows × {cols} columns', { rows: s.rows, cols: s.cols })}>
                   <input type="checkbox" checked={chosenSheets.includes(s.name)}
                     onChange={() => setChosenSheets((c) => (c.includes(s.name) ? c.filter((n) => n !== s.name) : [...c, s.name]))} />
                   <span>{s.name} <small className="muted">{s.rows} × {s.cols}</small></span>
                 </label>
               ))}
             </div>
-            <p className="hint muted">Ticked sheets are the only ones that can be changed.</p>
+            <p className="hint muted">{t('Ticked sheets are the only ones that can be changed.')}</p>
           </details>
         )}
       </section>
 
       <section className="job-section documents-box">
         <div className="section-head">
-          <span className="section-title">Documents <span className="count">{documents.length}/{listing.documents.length}</span></span>
+          <span className="section-title">{t('Documents')} <span className="count">{documents.length}/{listing.documents.length}</span></span>
           {listing.documents.length > 1 && (
             <span className="head-actions">
-              <button type="button" className="link" onClick={() => selectAll(true)}>All</button>
-              <button type="button" className="link" onClick={() => selectAll(false)}>None</button>
+              <button type="button" className="link" onClick={() => selectAll(true)}>{t('All')}</button>
+              <button type="button" className="link" onClick={() => selectAll(false)}>{t('None')}</button>
             </span>
           )}
         </div>
         <div className="documents-from" title={listing.documents_folder ?? listing.folder}>
-          From {listing.documents_folder ? <b>{listing.documents_folder.split(/[\\/]/).filter(Boolean).pop()}</b> : 'the workbook’s folder'}
+          {t('From')} {listing.documents_folder ? <b>{listing.documents_folder.split(/[\\/]/).filter(Boolean).pop()}</b> : t('the workbook’s folder')}
           <button type="button" className="link" onClick={onChangeDocumentFolder} disabled={busy}
-            title="Take the documents from another folder instead: pick any document in it">Change folder…</button>
+            title={t('Take the documents from another folder instead: pick any document in it')}>{t('Change folder…')}</button>
           {listing.documents_folder && (
-            <button type="button" className="link" onClick={onResetDocumentFolder} disabled={busy}>Use the workbook’s folder</button>
+            <button type="button" className="link" onClick={onResetDocumentFolder} disabled={busy}>{t('Use the workbook’s folder')}</button>
           )}
         </div>
         {listing.documents.length > 6 && (
-          <input type="search" className="filter" placeholder="Filter…" value={filter} aria-label="Filter documents"
+          <input type="search" className="filter" placeholder={t('Filter…')} value={filter} aria-label={t('Filter documents')}
             onChange={(e) => setFilter(e.target.value)} />
         )}
-        {listing.documents.length === 0 && <p className="muted">No PDF or image in this folder yet.</p>}
+        {listing.documents.length === 0 && <p className="muted">{t('No PDF or image in this folder yet.')}</p>}
         <div className="documents">
-          {shown.length === 0 && filter && <p className="muted">No document matches “{filter}”.</p>}
+          {shown.length === 0 && filter && <p className="muted">{t('No document matches')} “{filter}”.</p>}
           {shown.map((d) => (
             <label key={d} className="check" title={d}>
               <input type="checkbox" checked={documents.includes(d)} onChange={() => toggle(d)} /> <DocumentName path={d} />
@@ -145,32 +147,32 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
           ))}
         </div>
         <div className="add-links">
-          <button type="button" className="link" onClick={onAddDocuments} disabled={busy}>Add files…</button>
+          <button type="button" className="link" onClick={onAddDocuments} disabled={busy}>{t('Add files…')}</button>
           <button type="button" className="link" onClick={onAddDocumentFolder} disabled={busy}
-            title="Add the PDFs and images of another folder: pick any document in it">Add folder…</button>
+            title={t('Add the PDFs and images of another folder: pick any document in it')}>{t('Add folder…')}</button>
         </div>
       </section>
 
       <details className="fold job-section">
-        <summary>Instructions <span className="muted">{notes.trim() ? '' : '(optional)'}</span></summary>
-        <textarea id="notes" rows={3} aria-label="Instructions" placeholder="e.g. amounts excluding VAT, one row per line item"
+        <summary>{t('Instructions')} <span className="muted">{notes.trim() ? '' : t('(optional)')}</span></summary>
+        <textarea id="notes" rows={3} aria-label={t('Instructions')} placeholder={t('e.g. amounts excluding VAT, one row per line item')}
           value={notes} onChange={(e) => setNotes(e.target.value)} />
       </details>
 
       <div className="fill">
-        <label className={`auto-switch${onCopy ? ' on' : ''}`} title="The workbook is copied next to the original (for example costs (copy).xlsx) and the copy is filled. The original is not changed.">
+        <label className={`auto-switch${onCopy ? ' on' : ''}`} title={t('The workbook is copied next to the original (for example costs (copy).xlsx) and the copy is filled. The original is not changed.')}>
           <input type="checkbox" checked={onCopy} disabled={busy} onChange={(e) => setOnCopy(e.target.checked)} />
-          <span>Work on a copy <small>{onCopy ? 'the original is not changed' : 'the agent writes into the workbook itself'}</small></span>
+          <span>{t('Work on a copy')} <small>{onCopy ? t('the original is not changed') : t('the agent writes into the workbook itself')}</small></span>
         </label>
-        <label className={`auto-switch${auto ? ' on' : ''}`} title="Changes are applied without asking you; questions are not asked (missing values are left empty and listed)">
+        <label className={`auto-switch${auto ? ' on' : ''}`} title={t('Changes are applied without asking you; questions are not asked (missing values are left empty and listed)')}>
           <input type="checkbox" checked={auto} disabled={busy} onChange={(e) => onAuto(e.target.checked)} />
-          <span>Auto mode <small>{auto ? 'changes are saved without asking' : 'you approve each change'}</small></span>
+          <span>{t('Auto mode')} <small>{auto ? t('changes are saved without asking') : t('you approve each change')}</small></span>
         </label>
         <button className="primary wide" disabled={busy || !workbook || documents.length === 0}
           onClick={() => onFill(workbook, documents, notes, chosen, onCopy)}>
-          Fill workbook
+          {t('Fill workbook')}
         </button>
-        {!onCopy && <p className="copy-hint" role="note">⚠ Keep a copy of {workbook || 'the workbook'} first: the agent writes into it.</p>}
+        {!onCopy && <p className="copy-hint" role="note">⚠ {t('Keep a copy of {name} first: the agent writes into it.', { name: workbook || t('the workbook') })}</p>}
       </div>
     </aside>
   )

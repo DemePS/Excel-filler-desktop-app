@@ -1,6 +1,7 @@
 // Approvals and Claude's questions: the agent waits until you answer.
 
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '../i18n'
 import type { Question } from '../types'
 import { Change } from './Change'
 import { Markdown } from './Markdown'
@@ -8,6 +9,7 @@ import { Markdown } from './Markdown'
 const LABELS: Record<string, string> = { yes: 'Approve', no: 'Reject', 'always for this session': 'Always' }
 
 export function QuestionDialog({ question, onAnswer }: { question: Question; onAnswer: (value: string | null) => void }) {
+  const t = useT()
   const [text, setText] = useState('')
   const first = useRef<HTMLButtonElement & HTMLTextAreaElement>(null)
   useEffect(() => {
@@ -21,12 +23,12 @@ export function QuestionDialog({ question, onAnswer }: { question: Question; onA
         {question.kind === 'confirm' ? (
           <>
             {question.context?.kind === 'change' && <Change item={question.context} />}
-            <h2 id="question-title">{question.question}</h2>
+            <h2 id="question-title">{t(question.question)}</h2>
             <div className="actions">
               {question.choices.map((choice, i) => (
                 <button key={choice} ref={i === 0 ? first : undefined} className={choice === 'yes' ? 'primary' : choice === 'no' ? 'danger' : ''}
                   onClick={() => onAnswer(choice)}>
-                  {LABELS[choice] ?? choice}
+                  {t(LABELS[choice] ?? choice)}
                 </button>
               ))}
             </div>
@@ -34,13 +36,13 @@ export function QuestionDialog({ question, onAnswer }: { question: Question; onA
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); onAnswer(text) }}>
             {question.context && <div className="asked"><Markdown text={question.context} /></div>}
-            <label id="question-title" htmlFor="answer">{question.context ? 'Your answer' : question.prompt.replace(/\s*\(.*\)\s*:?\s*$/, '')}</label>
+            <label id="question-title" htmlFor="answer">{question.context ? t('Your answer') : t(question.prompt.replace(/\s*\(.*\)\s*:?\s*$/, ''))}</label>
             <textarea id="answer" ref={first} rows={question.multiline ? 5 : 2} value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onAnswer(text) }} />
             <div className="actions">
-              <button type="button" onClick={() => onAnswer('')}>Skip</button>
-              <button type="submit" className="primary">Send</button>
+              <button type="button" onClick={() => onAnswer('')}>{t('Skip')}</button>
+              <button type="submit" className="primary">{t('Send')}</button>
             </div>
           </form>
         )}

@@ -216,3 +216,6 @@ pre { margin: 0; font-family: var(--mono); font-size: 0.85em; }
 .settings .key-row { display: flex; gap: 8px; }
 .settings .key-row input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
 .settings select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+
+/* The language button: the name of the language it switches to. */
+.lang-switch { font-weight: 600; white-space: nowrap; }

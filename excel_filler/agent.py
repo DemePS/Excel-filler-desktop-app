@@ -87,7 +87,19 @@ def set_auto(on: bool) -> None:
         set_auto_mode(on)
 
 
-def job_instruction(workbook: str, documents: list[str], notes: str = "", sheets: list[str] | None = None) -> str:
+LANGUAGE_NAMES = {"fr": "French", "en": "English"}
+
+
+def language_hint(language: str) -> str:
+    """One line asking for the summary, the questions and the notes in the window's language ("" for English
+    or an unknown language: the default behaviour is unchanged)."""
+    name = LANGUAGE_NAMES.get((language or "").lower())
+    if not name or name == "English":
+        return ""
+    return f"Write your summary, your questions and your remarks in {name}. Keep the workbook's values and headers as they are."
+
+
+def job_instruction(workbook: str, documents: list[str], notes: str = "", sheets: list[str] | None = None, language: str = "") -> str:
     """The instruction for one filling job, as Claude receives it."""
     docs = "\n".join(f"- {d}" for d in documents) if documents else "- (the documents in this folder)"
     text = f"Fill the Excel workbook {workbook} using these documents:\n{docs}"
@@ -101,10 +113,12 @@ def job_instruction(workbook: str, documents: list[str], notes: str = "", sheets
                  f"lookup table).")
     if notes.strip():
         text += f"\n\nInstructions from the person:\n{notes.strip()}"
+    if hint := language_hint(language):
+        text += f"\n\n{hint}"
     return text
 
 
-def fill(workbook: str, documents: list[str], notes: str = "", sheets: list[str] | None = None) -> bool:
+def fill(workbook: str, documents: list[str], notes: str = "", sheets: list[str] | None = None, language: str = "") -> bool:
     """Run one filling job to completion. False if it failed (the reason was shown in the UI).
     With sheets, only those sheets of the workbook can be changed (also in follow-up requests)."""
     path = (state.workspace / workbook).resolve()
@@ -112,4 +126,4 @@ def fill(workbook: str, documents: list[str], notes: str = "", sheets: list[str]
         state.excel_edit_sheets[path] = set(sheets)
     else:
         state.excel_edit_sheets.pop(path, None)
-    return session.send(job_instruction(workbook, documents, notes, sheets))
+    return session.send(job_instruction(workbook, documents, notes, sheets, language))

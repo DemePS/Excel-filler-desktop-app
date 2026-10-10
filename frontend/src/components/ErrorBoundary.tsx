@@ -3,6 +3,7 @@
 
 import { Component, type ReactNode } from 'react'
 import { reportError } from '../api'
+import { initialLang, translate } from '../i18n'
 
 export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
@@ -17,12 +18,13 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
 
   render() {
     if (!this.state.error) return this.props.children
+    const t = (text: string) => translate(text, initialLang())  // outside the language provider: the saved choice
     return (
       <div className="crash" role="alert">
-        <h2>The window could not show the agent's progress.</h2>
-        <p>The job may still be running. Reloading the window shows its current state; the error was written to the log file.</p>
+        <h2>{t('The window could not show the agent\'s progress.')}</h2>
+        <p>{t('The job may still be running. Reloading the window shows its current state; the error was written to the log file.')}</p>
         <pre>{this.state.error.message}</pre>
-        <button className="primary" onClick={() => window.location.reload()}>Reload the window</button>
+        <button className="primary" onClick={() => window.location.reload()}>{t('Reload the window')}</button>
       </div>
     )
   }

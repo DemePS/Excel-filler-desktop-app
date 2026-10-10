@@ -2,6 +2,7 @@
 // side panel; double-click to go back to the default width. The width is remembered.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useT } from '../i18n'
 
 const KEY = 'excel-filler.sidebar-width'
 export const DEFAULT_WIDTH = 320
@@ -41,6 +42,7 @@ export function useSidebarWidth() {
 }
 
 export function Splitter({ width, onResize }: { width: number; onResize: (width: number) => void }) {
+  const t = useT()
   const [dragging, setDragging] = useState(false)
 
   const start = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -66,12 +68,12 @@ export function Splitter({ width, onResize }: { width: number; onResize: (width:
       className={`splitter${dragging ? ' dragging' : ''}`}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize the side panel"
+      aria-label={t('Resize the side panel')}
       aria-valuenow={width}
       aria-valuemin={MIN}
       aria-valuemax={maxWidth()}
       tabIndex={0}
-      title="Drag to resize; double-click to reset"
+      title={t('Drag to resize; double-click to reset')}
       onPointerDown={start}
       onDoubleClick={() => onResize(DEFAULT_WIDTH)}
       onKeyDown={(e) => {
