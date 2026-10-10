@@ -56,7 +56,8 @@ How ComptaIA works
   "Update chart of accounts" replaces that chart with a PDF or text file you choose.
 - Scanned documents are read too (OCR or by looking at the page). Check names, dates and amounts taken
   from a scan: they can be misread.
-- Settings: paste your DeepSeek API key; "Get my API key" opens DeepSeek's page where you create one.
+- "My API key" (top right): paste your DeepSeek API key; "Get my API key" opens DeepSeek's page where you create one.
+  Once a key is saved, the button shows it hidden (only its last four characters).
   The key is saved on this PC (Windows Credential Manager) and sent only to DeepSeek, which bills you for
   use. The language button switches French and English.
 - Privacy: the text and images of the documents that are read are sent to DeepSeek, to be read by the
@@ -65,7 +66,7 @@ How ComptaIA works
 
 Questions people ask
 - What is an API key? A secret code that identifies your DeepSeek account and lets ComptaIA use the
-  model on your behalf. You create it on DeepSeek's site ("Get my API key" in Settings), and DeepSeek
+  model on your behalf. You create it on DeepSeek's site ("Get my API key" in the "My API key" window), and DeepSeek
   bills you for what you use. Keep it private: whoever has it can use your account. If it leaks, delete
   it on DeepSeek's site and create another. ComptaIA keeps it in the Windows Credential Manager, not in
   a file and not in the log.

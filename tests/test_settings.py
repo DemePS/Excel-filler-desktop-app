@@ -45,7 +45,7 @@ def test_nothing_set_up(parts):
     client, _, _ = parts
     info = client.get("/api/settings").json()
     assert info["configured"] is False and info["source"] == "none" and info["storage"] == "session"
-    assert "Settings" in client.get("/api/state").json()["connection_problem"]
+    assert "My API key" in client.get("/api/state").json()["connection_problem"]
     assert client.post("/api/job", json={"workbook": "a.xlsx"}).status_code == 400
 
 

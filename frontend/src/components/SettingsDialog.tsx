@@ -55,18 +55,20 @@ export function SettingsDialog({ info, firstRun, onClose, onChanged }: Props) {
     <div className="backdrop">
       <div className="dialog settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <form onSubmit={(e) => { e.preventDefault(); if (key.trim() && !busy) save() }} autoComplete="off">
-          <h2 id="settings-title">{firstRun ? t('Add your API key') : t('Settings')}</h2>
+          <h2 id="settings-title">{t('My API key')}</h2>
           <p className="hint">
             {t('ComptaIA uses an AI model through your own DeepSeek account; DeepSeek bills you directly for what you use.')}
           </p>
-          <p className="hint">
-            <button type="button" onClick={() => openExternal(info.keys_url)}>{t('Get my API key')}</button>{' '}
-            <span className="muted">{info.keys_url.replace('https://', '')}</span>
-          </p>
+          {hasKey
+            ? <p className="saved-key" aria-label={t('Saved key (hidden)')}>
+                <span className="muted">{t('Saved key (hidden)')}</span> <code>••••••••••••••••</code> {t('ending in')} <b>{info.key_hint}</b>
+              </p>
+            : <p className="hint">
+                {t('No key yet. Get one on the DeepSeek website, then paste it here.')}{' '}
+                <button type="button" className="primary" onClick={() => openExternal(info.keys_url)}>{t('Get my API key')}</button>
+              </p>}
           <p className="hint muted">{t('ComptaIA is not affiliated with DeepSeek or Microsoft.')}</p>
-          {hasKey && <p className="hint">{t('A key ending in')} <b>{info.key_hint}</b> {t('is saved. Paste a new one to replace it.')}</p>}
-          {info.source === 'foundry' && <p className="hint">{t('Currently using the Azure Foundry setup of this PC. A key saved here is used instead.')}</p>}
-          <label htmlFor="api-key">{t('API key')}</label>
+          <label htmlFor="api-key">{hasKey ? t('Paste a new key to replace it') : t('API key')}</label>
           <div className="key-row">
             <input id="api-key" ref={input} type={show ? 'text' : 'password'} value={key} onChange={(e) => setKey(e.target.value)}
               placeholder="sk-…" autoComplete="new-password" spellCheck={false} autoCapitalize="off" />

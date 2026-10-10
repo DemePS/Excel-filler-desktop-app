@@ -72,23 +72,23 @@ The same code runs on both; what differs is the window and the file dialogs.
 
 Opening a workbook uses the system's default application on each system (Excel, `xdg-open`). The API
 key goes to the Windows Credential Manager, or to the Linux Secret Service when there is one; without a
-keyring it is kept for the session only and the Settings dialog says so. The Windows build recipe
+keyring it is kept for the session only and the My API key window says so. The Windows build recipe
 (PyInstaller) is Windows-only; running from the sources works on both with `uv sync --locked`.
 
 ## Model access
 
 Two ways, in this order of precedence:
 
-1. **Your own API key**, entered in the window (**Settings**). **Get my API key** opens its
+1. **Your own API key**, entered in the window (**My API key**). **Get my API key** opens its
    page (`platform.deepseek.com`). The key is tested with one tiny
    call, then kept in the Windows Credential Manager: never in a file, never in the log, and sent only to the service
    you chose. Where no secure storage exists it is kept for that run only and the dialog says so. The service bills
    the key's owner directly. **Remove key** goes back to the second way.
 2. **Azure / Microsoft Foundry**, set up in a `.env` file or the environment (see *Try it (terminal)* for the variables).
-   A key saved in Settings is used instead of a Foundry setup while it exists.
+   A key saved with **My API key** is used instead of a Foundry setup while it exists.
 
 The same engine reads `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` from the environment when no Foundry endpoint is set
-(handy for the terminal command); a key saved in Settings wins over them.
+(handy for the terminal command); a key saved with **My API key** wins over them.
 
 ## Build the Windows app
 
@@ -115,7 +115,7 @@ Settings screen: it uses these.
 
 | Variable | Meaning |
 |---|---|
-| `DEEPSEEK_API_KEY` + `CODEAGENT_PROVIDER=deepseek` | your DeepSeek API key (what the window sets from Settings) |
+| `DEEPSEEK_API_KEY` + `CODEAGENT_PROVIDER=deepseek` | your DeepSeek API key (what the window sets from My API key) |
 | `ANTHROPIC_API_KEY` | an Anthropic API key (terminal use, when no Foundry endpoint is set) |
 | `ANTHROPIC_MODEL` | a model ID (default `claude-opus-5`) |
 | `ANTHROPIC_FOUNDRY_ENDPOINT` | `https://<resource>.services.ai.azure.com/anthropic` (Foundry; wins over `ANTHROPIC_API_KEY`) |

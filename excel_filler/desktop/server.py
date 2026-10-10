@@ -217,7 +217,7 @@ def open_file(path: Path) -> None:
 def connection_problem() -> str | None:
     """Why the agent cannot reach ComptaIA yet, in plain words (None when the settings look complete)."""
     if active_provider() is None:
-        return "Add your API key in Settings to start."
+        return "Click “My API key” to start."
     return None
 
 
@@ -281,7 +281,7 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
         if len(question) > help_guide.MAX_QUESTION:
             raise HTTPException(400, f"Keep the question under {help_guide.MAX_QUESTION} characters.")
         if active_provider() is None:
-            raise HTTPException(409, connection_problem() or "Add your API key in Settings first.")
+            raise HTTPException(409, connection_problem() or "Click “My API key” first.")
         from coding_agent.config import get_model
         try:
             answer = help_guide.ask(session._get_client(), get_model(), question, body.history, body.language,

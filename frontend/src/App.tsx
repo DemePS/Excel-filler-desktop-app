@@ -59,7 +59,7 @@ function AppContent() {
   const settingsChanged = (info: SettingsInfo) => {
     setSettings(info)
     setSettingsOpen(!info.configured)
-    dispatch({ kind: 'problem', problem: info.configured ? null : t('Add your API key in Settings to start.') })
+    dispatch({ kind: 'problem', problem: info.configured ? null : t('Click “My API key” to start.') })
     checkConnection()
   }
 
@@ -179,7 +179,7 @@ function AppContent() {
         <button className="lang-switch" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} aria-label={t('Language')}
           title={t(lang === 'fr' ? 'Switch to English' : 'Switch to French')}>{lang === 'fr' ? 'English' : 'Français'}</button>
         <button onClick={() => setChartOpen(true)} disabled={busy} title={t('Replace the chart of accounts used by ComptaIA')}>{t('Update chart of accounts')}</button>
-        <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title={t('API key')}>{t('Settings')}</button>
+        <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title={t('API key')}>{t('My API key')}</button>
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy || !!state.problem}>
           {listing.folder ? t('Open another workbook…') : t('Open workbook…')}
         </button>
