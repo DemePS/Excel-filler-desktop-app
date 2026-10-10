@@ -1,15 +1,30 @@
 # ComptaIA
 
-Fill an Excel workbook from PDF documents with Claude, reviewing every change before it is saved. It
-runs on your own Anthropic API key (entered in the window) or on Azure / Microsoft Foundry.
+ComptaIA fills your Excel templates from accounting documents (invoices, statements, scans), and shows you
+every change before it is saved. It runs on your own Anthropic API key (entered in the window) or on Azure /
+Microsoft Foundry.
 
-You open the workbook and pick the documents (invoices, statements, scans): those next to the
-workbook, the documents of another folder instead (**Change folder…**; **Use the workbook's folder**
-goes back), more folders (**Add folder…**), or single files from anywhere (**Add files…**). Folders outside the workbook's are read-only for the agent, which only
-ever writes the workbook. It
-opens the workbook first to see which fields are needed, reads only the document pages that hold
-them, writes the values (you approve a cell-by-cell diff), checks them, and ends with the source
-of every value. It never invents a value: missing or ambiguous ones are asked or left empty.
+**What it does**
+- **Fills your Excel templates** (`.xlsx`, `.xlsm`; an old `.xls` must first be saved as `.xlsx`). It reads the
+  template first to see which cells, columns and formats are expected, never overwrites a formula, and can work
+  on a copy so the original is never changed.
+- **Reads your documents**: PDF (text, and scans through OCR or by looking at the page), images (PNG, JPG, WebP,
+  GIF), Word (`.docx`: text and tables), text and CSV files.
+- **Uses the accounting rules you give it**: with a knowledge folder (`EXCEL_FILLER_KNOWLEDGE`) holding, for
+  example, the *Plan comptable général* 2026 and the tax texts, it looks account numbers and rules up in them
+  instead of writing them from memory, and leaves a cell empty when it cannot find one.
+- **Shows its work**: you approve each change (or use auto mode), and it ends with the source of every value
+  and what it could not fill.
+
+**What it does not do**: it does not replace an accountant's judgement, it does not file returns or make
+payments, and a scanned amount must be checked by a person.
+
+You open the workbook and pick the documents (those next to the workbook, the documents of another folder
+instead (**Change folder…**), more folders (**Add folder…**), or single files from anywhere (**Add files…**)).
+Folders outside the workbook's are read-only for the agent, which only ever writes the workbook. It opens the
+workbook first to see which fields are needed, reads only the document pages that hold them, writes the values,
+checks them, and ends with the source of every value. It never invents a value: missing or ambiguous ones are
+asked or left empty.
 
 ## How it is built
 
