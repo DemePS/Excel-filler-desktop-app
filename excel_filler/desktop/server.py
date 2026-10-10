@@ -31,6 +31,7 @@ from coding_agent.config import BACKUP_HOME, DEFAULT_MODEL
 from coding_agent.errors import redact
 
 from .. import agent
+from . import picker
 from .joblog import JobLog, log as job_log
 from .settings import Settings, valid_key
 from .webui import WebUI
@@ -134,6 +135,11 @@ class FolderIn(BaseModel):
 
 class PathsIn(BaseModel):
     paths: list[str]
+
+
+class PickIn(BaseModel):
+    kind: str  # workbook, documents or folder
+    folder: str | None = None  # where the dialog opens
 
 
 class JobIn(BaseModel):
@@ -308,6 +314,23 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
         took = f"{time.monotonic() - started:.1f} s"
         (job_log.info if ok else job_log.error)("Connection check (%s): %s", took, message if not ok else "OK, " + message)
         return {"ok": ok, "message": message}
+
+    @app.get("/api/pick/available", dependencies=guarded)
+    def pick_available():
+        """Whether the backend can show a file dialog itself (browser mode on Linux: zenity)."""
+        return {"available": picker.available()}
+
+    @app.post("/api/pick", dependencies=guarded)
+    def pick_paths(body: PickIn):
+        """Show the system's file dialog on this machine and return the paths chosen ([] if cancelled)."""
+        if body.kind not in picker.TITLES:
+            raise HTTPException(400, f"Unknown dialog: {body.kind}")
+        if not picker.available():
+            raise HTTPException(501, "No file dialog is available on this system.")
+        try:
+            return {"paths": picker.pick(body.kind, body.folder)}
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
 
     @app.post("/api/folder", dependencies=guarded)
     def open_folder(body: FolderIn):

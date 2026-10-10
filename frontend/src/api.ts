@@ -70,15 +70,31 @@ type PyWebview = {
 
 const native = () => (window as unknown as { pywebview?: PyWebview }).pywebview
 
+// In a browser (no native window) the backend, which runs on this machine, can open the system's dialog
+// (Linux: zenity). When it cannot, the person types the path.
+async function backendDialog(kind: 'workbook' | 'documents' | 'folder', folder?: string): Promise<string[] | null> {
+  try {
+    const info = await call<{ available: boolean }>('/api/pick/available')
+    if (!info.available) return null
+    return (await call<{ paths: string[] }>('/api/pick', { kind, folder })).paths
+  } catch {
+    return null
+  }
+}
+
 export async function pickWorkbook(): Promise<string | null> {
   const pywebview = native()
   if (pywebview) return pywebview.api.pick_workbook()
+  const chosen = await backendDialog('workbook')
+  if (chosen) return chosen[0] ?? null
   return window.prompt('Full path of the Excel workbook to fill (.xlsx or .xlsm):')
 }
 
 export async function pickDocuments(folder: string): Promise<string[]> {
   const pywebview = native()
   if (pywebview) return pywebview.api.pick_documents(folder)
+  const chosen = await backendDialog('documents', folder)
+  if (chosen) return chosen
   const answer = window.prompt(`Full paths of the documents, one per line or separated by ";" (they must be in ${folder}):`)
   return answer ? answer.split(/[;\n]/).map((p) => p.trim()).filter(Boolean) : []
 }
@@ -86,6 +102,8 @@ export async function pickDocuments(folder: string): Promise<string[]> {
 export async function pickDocumentFolder(folder: string): Promise<string | null> {
   const pywebview = native()
   if (pywebview) return pywebview.api.pick_document_folder(folder)
+  const chosen = await backendDialog('folder', folder)
+  if (chosen) return chosen[0] ?? null
   return window.prompt('Full path of the folder holding the documents, or of any document in it:')
 }
 
