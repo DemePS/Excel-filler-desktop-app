@@ -54,7 +54,8 @@ const FR: Record<string, string> = {
   'Choose a file…': 'Choisir un fichier…',
   Help: 'Aide',
   'Ask how to use ComptaIA': 'Demander comment utiliser ComptaIA',
-  'Ask how to use ComptaIA. It does not see your files or your workbook.': 'Demandez comment utiliser ComptaIA. Il ne voit ni vos fichiers ni votre classeur.',
+  'Ask how to use ComptaIA, or why it filled a value. With a workbook open, the agent that did the work answers in the activity feed.':
+    'Demandez comment utiliser ComptaIA, ou pourquoi une valeur a été remplie. Quand un classeur est ouvert, c’est l’agent qui a fait le travail qui répond, dans le fil d’activité.',
   'For example: how do I fill only one sheet? What does “Work on a copy” do?': 'Par exemple : comment ne remplir qu’une feuille ? Que fait « Travailler sur une copie » ?',
   'Your question…': 'Votre question…',
   'Add your API key': 'Ajoutez votre clé API',

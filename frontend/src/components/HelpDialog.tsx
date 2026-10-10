@@ -1,4 +1,5 @@
-// The Help button: a short conversation with the model about using ComptaIA (no access to your files).
+// The Help button: a question about ComptaIA or about what it did. With a workbook open it goes to the agent of the
+// job (same conversation, the answer appears in the activity feed); before that, a short answer from the guide.
 
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
@@ -28,8 +29,9 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
     const history = turns
     setTurns([...history, { role: 'user', text }])
     try {
-      const { answer } = await api.help(text, history, lang)
-      setTurns((all) => [...all, { role: 'assistant', text: answer }])
+      const result = await api.help(text, history, lang)
+      if (result.started) { onClose(); return }  // the agent of the job answers in the activity feed
+      setTurns((all) => [...all, { role: 'assistant', text: result.answer ?? '…' }])
     } catch (e) {
       setError((e as Error).message)
       setQuestion(text)
@@ -43,7 +45,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
     <div className="backdrop">
       <div className="dialog help" role="dialog" aria-modal="true" aria-labelledby="help-title">
         <h2 id="help-title">{t('Help')}</h2>
-        <p className="hint muted">{t('Ask how to use ComptaIA. It does not see your files or your workbook.')}</p>
+        <p className="hint muted">{t('Ask how to use ComptaIA, or why it filled a value. With a workbook open, the agent that did the work answers in the activity feed.')}</p>
         <div className="help-log">
           {turns.length === 0 && <p className="muted">{t('For example: how do I fill only one sheet? What does “Work on a copy” do?')}</p>}
           {turns.map((turn, i) => turn.role === 'user'
