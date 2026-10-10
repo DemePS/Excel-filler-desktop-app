@@ -1,0 +1,28 @@
+# Builds the Windows app (dist/ComptaIA/ComptaIA.exe) and attaches it as a zip.
+# Run it by hand (Actions > Build Windows app > Run workflow) or by pushing a tag such as v0.1.0.
+name: Build Windows app
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install (exact versions of uv.lock)
+        run: uv sync --locked --group dev --group build
+      - name: Tests
+        run: uv run python -m pytest -q
+      - name: Build
+        run: uv run --group build pyinstaller --noconfirm packaging/comptaia.spec
+      - name: Zip
+        run: Compress-Archive -Path dist/ComptaIA -DestinationPath ComptaIA-windows.zip
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ComptaIA-windows
+          path: ComptaIA-windows.zip

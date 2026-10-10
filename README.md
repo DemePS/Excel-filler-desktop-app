@@ -97,7 +97,7 @@ On Windows, from the project folder:
 
 ```powershell
 uv sync --locked
-uv run --group build pyinstaller packaging/excel-filler.spec
+uv run --group build pyinstaller packaging/comptaia.spec
 ```
 
 The result is `dist\ExcelFiller\ExcelFiller.exe` with its `_internal` folder: zip the whole `ExcelFiller` folder to share it.

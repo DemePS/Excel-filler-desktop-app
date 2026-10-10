@@ -1,4 +1,4 @@
-"""Entry point of the packaged app (ExcelFiller.exe): the desktop window."""
+"""Entry point of the packaged app (ComptaIA.exe): the desktop window."""
 
 from excel_filler.desktop.app import main
 
