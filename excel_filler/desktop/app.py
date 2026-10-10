@@ -10,6 +10,7 @@ Everything (startup, errors, the backend's log) also goes to
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import logging
 import os
 import secrets
@@ -126,6 +127,14 @@ def run_in_browser(url: str) -> None:
         pass
 
 
+def native_window_possible() -> bool:
+    """Windows and macOS bring their own window toolkit to pywebview. On Linux it needs GTK (the `gi` module)
+    or Qt (`qtpy`): without one, going straight to the browser avoids two pages of errors."""
+    if not sys.platform.startswith("linux"):
+        return True
+    return any(importlib.util.find_spec(name) is not None for name in ("gi", "qtpy"))
+
+
 def run_in_window(url: str) -> None:
     import webview
     api = WindowApi()
@@ -167,6 +176,9 @@ def main() -> None:
 
     try:
         if args.browser:
+            run_in_browser(url)
+        elif not native_window_possible():
+            log.info("No GTK or Qt on this system, so no native window: opening in the browser.")
             run_in_browser(url)
         else:
             try:

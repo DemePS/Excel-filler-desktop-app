@@ -38,6 +38,20 @@ The window's UI comes already built (`excel_filler/desktop/static/`), so running
 no Node.js. Only if you change the UI code in `frontend/`: `cd frontend && npm ci && npm run
 build`, and commit the updated `excel_filler/desktop/static/` with your change.
 
+## Windows and Linux
+
+The same code runs on both; what differs is the window and the file dialogs.
+
+| | Window | File dialogs |
+|---|---|---|
+| **Windows** | native window (WebView2); the browser if it cannot open | the window's own dialogs; in the browser, tkinter's (Python's Tk) |
+| **Linux** | a native window if GTK (`gi`) or Qt (`qtpy`) is installed, e.g. `uv pip install "pywebview[qt]"`; otherwise the browser, with one log line | in the browser, `zenity` if installed, else tkinter's; if neither, the path is typed |
+
+Opening a workbook uses the system's default application on each system (Excel, `xdg-open`). The API
+key goes to the Windows Credential Manager, or to the Linux Secret Service when there is one; without a
+keyring it is kept for the session only and the Settings dialog says so. The Windows build recipe
+(PyInstaller) is Windows-only; running from the sources works on both with `uv sync --locked`.
+
 ## Claude access
 
 Two ways, in this order of precedence:
