@@ -178,7 +178,6 @@ function AppContent() {
         )}
         <button className="lang-switch" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} aria-label={t('Language')}
           title={t(lang === 'fr' ? 'Switch to English' : 'Switch to French')}>{lang === 'fr' ? 'English' : 'Français'}</button>
-        <button onClick={() => setHelpOpen(true)} title={t('Questions about using ComptaIA: API key, your data, a value that looks wrong')}>{t('A problem?')}</button>
         <button onClick={() => setChartOpen(true)} disabled={busy} title={t('Replace the chart of accounts used by ComptaIA')}>{t('Update chart of accounts')}</button>
         <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title={t('API key')}>{t('Settings')}</button>
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy || !!state.problem}>
@@ -219,6 +218,10 @@ function AppContent() {
       {settingsOpen && settings && !question && (
         <SettingsDialog info={settings} firstRun={!settings.configured} onClose={() => setSettingsOpen(false)} onChanged={settingsChanged} />
       )}
+      <button className="help-fab" onClick={() => setHelpOpen(true)}
+        title={t('Questions about using ComptaIA: API key, your data, a value that looks wrong')}>
+        <span aria-hidden>?</span> {t('A problem?')}
+      </button>
       {helpOpen && !question && <HelpDialog onClose={() => setHelpOpen(false)} />}
       {chartOpen && !question && <ChartDialog onClose={() => setChartOpen(false)} />}
       {question && <QuestionDialog question={question} onAnswer={(value) => run(async () => {
