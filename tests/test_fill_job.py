@@ -32,7 +32,8 @@ def test_fill_job_end_to_end(folder, monkeypatch):
     fake = FakeClaude([
         ([("read_pdf", {"path": "invoice.pdf", "mode": "text"})], "tool_use"),        # tries the PDF first
         ([("read_excel", {"path": "costs.xlsx"})], "tool_use"),
-        ([("read_pdf", {"path": "invoice.pdf", "pages": "1"})], "tool_use"),
+        ([("read_pdf", {"path": "invoice.pdf", "pages": "1"})], "tool_use"),                   # text is the default mode
+        ([("read_pdf", {"path": "invoice.pdf", "pages": "1", "mode": "visual"})], "tool_use"),  # then the page itself, to check it
         ([("edit_excel", {"path": "costs.xlsx", "changes": [
             {"sheet": "Costs", "cell": "A2", "value": "Sensors"},
             {"sheet": "Costs", "cell": "B2", "value": 12},
@@ -46,12 +47,15 @@ def test_fill_job_end_to_end(folder, monkeypatch):
 
     first = fake.requests[0]
     assert sorted(t["name"] for t in first["tools"]) == sorted(agent.TOOLS)
-    assert first["system"].startswith("You fill Excel workbooks") and str(folder.resolve()) in first["system"]
+    system = first["system"]
+    system = system if isinstance(system, str) else "".join(block["text"] for block in system)  # a list of blocks with a cache point, or a string
+    assert system.startswith("You fill Excel workbooks") and str(folder.resolve()) in system
     instruction = first["messages"][0]["content"][-1]["text"]
     assert "Fill the Excel workbook costs.xlsx" in instruction and "- invoice.pdf" in instruction and "amounts in EUR" in instruction
     assert "read_excel first" in fake.tool_results(1)["read"]["content"]  # the spreadsheet-first rule
-    doc = fake.tool_results(3)["read"]["content"]
-    assert [b["type"] for b in doc] == ["text", "document"]
+    assert "Invoice INV-31" in fake.tool_results(3)["read"]["content"]            # the text read (the default mode)
+    doc = fake.tool_results(4)["read"]["content"]
+    assert [b["type"] for b in doc] == ["text", "document"]                      # the page, read visually after the text read
 
     ws = openpyxl.load_workbook(folder / "costs.xlsx")["Costs"]
     assert (ws["A2"].value, ws["B2"].value, ws["C2"].value, ws["D2"].value) == ("Sensors", 12, 45.5, "=B2*C2")
