@@ -1,7 +1,7 @@
 """WebUI: the coding_agent UI interface, sent to the desktop window as events.
 
 Everything the agent shows becomes a JSON event pushed to the window (over a WebSocket). Questions
-(approvals, Claude's questions) are events too; the agent's thread then waits until the window
+(approvals, ComptaIA's questions) are events too; the agent's thread then waits until the window
 posts the answer back. Events are also kept in a history, so a reloaded window can catch up.
 """
 

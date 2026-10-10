@@ -1,4 +1,4 @@
-// Approvals and Claude's questions: the agent waits until you answer.
+// Approvals and ComptaIA's questions: the agent waits until you answer.
 
 import { useEffect, useRef, useState } from 'react'
 import { useT } from '../i18n'

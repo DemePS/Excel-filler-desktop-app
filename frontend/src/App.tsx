@@ -5,6 +5,7 @@ import { JobPanel } from './components/JobPanel'
 import { QuestionDialog } from './components/QuestionDialog'
 import { SettingsDialog } from './components/SettingsDialog'
 import { ChartDialog } from './components/ChartDialog'
+import { HelpDialog } from './components/HelpDialog'
 import { Splitter, useSidebarWidth } from './components/Splitter'
 import { LangProvider, useLang } from './i18n'
 import { answered, apply, initialState, type State } from './state'
@@ -50,6 +51,7 @@ function AppContent() {
   const [settings, setSettings] = useState<SettingsInfo | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [chartOpen, setChartOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   useEffect(() => {
     if (!connected) return
     api.getSettings().then((info) => { setSettings(info); if (!info.configured) setSettingsOpen(true) }).catch(() => {})
@@ -57,7 +59,7 @@ function AppContent() {
   const settingsChanged = (info: SettingsInfo) => {
     setSettings(info)
     setSettingsOpen(!info.configured)
-    dispatch({ kind: 'problem', problem: info.configured ? null : t('Add your Anthropic API key in Settings to start.') })
+    dispatch({ kind: 'problem', problem: info.configured ? null : t('Add your API key in Settings to start.') })
     checkConnection()
   }
 
@@ -72,9 +74,9 @@ function AppContent() {
             setConnected(true)
             dispatch({ kind: 'hello', hello: event as Hello })
           } else {
-            // Claude is answering: it is reachable, whatever the startup check says (or has not said yet).
+            // ComptaIA is answering: it is reachable, whatever the startup check says (or has not said yet).
             if (['assistant_start', 'text', 'thinking', 'tool'].includes(event.type)) {
-              setClaude((c) => (c.state === 'ok' ? c : { state: 'ok', message: 'Assistant answered' }))
+              setClaude((c) => (c.state === 'ok' ? c : { state: 'ok', message: 'ComptaIA answered' }))
             }
             dispatch({ kind: 'event', event: event as AgentEvent })
           }
@@ -157,7 +159,7 @@ function AppContent() {
 
   const { listing, busy, question } = state
   useEffect(() => { if (!busy) setStopping(false) }, [busy])
-  // Claude ended with a question (instead of asking it in a dialog): the reply box says so and takes the focus.
+  // ComptaIA ended with a question (instead of asking it in a dialog): the reply box says so and takes the focus.
   const lastClaude = [...state.items].reverse().find((item) => item.kind === 'claude' ? item.text.trim() : item.kind !== 'note')
   const awaitingReply = !busy && !question && lastClaude?.kind === 'claude' && lastClaude.text.trim().endsWith('?')
   const reply = useRef<HTMLInputElement>(null)
@@ -171,13 +173,14 @@ function AppContent() {
         {state.auto && <span className="auto-tag" title={t('Changes are applied without asking; a backup of the workbook is kept')}>{t('Auto mode')}</span>}
         {claude.state !== 'checking' && !state.problem && (
           <span className={`claude-status ${claude.state}`} title={t(claude.message)}>
-            {claude.state === 'ok' ? t('Assistant connected') : t('Assistant unreachable')}
+            {claude.state === 'ok' ? t('ComptaIA connected') : t('ComptaIA unreachable')}
           </span>
         )}
         <button className="lang-switch" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} aria-label={t('Language')}
           title={t(lang === 'fr' ? 'Switch to English' : 'Switch to French')}>{lang === 'fr' ? 'English' : 'Français'}</button>
-        <button onClick={() => setChartOpen(true)} disabled={busy} title={t('Replace the chart of accounts the assistant uses')}>{t('Update chart of accounts')}</button>
-        <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title={t('Anthropic API key and model')}>{t('Settings')}</button>
+        <button onClick={() => setHelpOpen(true)} title={t('Ask how to use ComptaIA')}>{t('Help')}</button>
+        <button onClick={() => setChartOpen(true)} disabled={busy} title={t('Replace the chart of accounts used by ComptaIA')}>{t('Update chart of accounts')}</button>
+        <button onClick={() => setSettingsOpen(true)} disabled={busy || !settings} title={t('API key')}>{t('Settings')}</button>
         <button className={listing.folder ? '' : 'primary'} onClick={openWorkbook} disabled={busy || !!state.problem}>
           {listing.folder ? t('Open another workbook…') : t('Open workbook…')}
         </button>
@@ -186,7 +189,7 @@ function AppContent() {
       {!connected && <div className="banner warning">{t('Connecting to the agent…')}</div>}
       {claude.state === 'failed' && !state.problem && (
         <div className="banner error" role="alert">
-          <b>{t('The assistant cannot be reached.')}</b> {claude.message}
+          <b>{t('ComptaIA cannot be reached.')}</b> {claude.message}
           <button className="link" onClick={checkConnection}>{t('Retry')}</button>
         </div>
       )}
@@ -199,7 +202,7 @@ function AppContent() {
         <Splitter width={sidebarWidth} onResize={setSidebarWidth} />
         <section className="feed">
           <Activity items={state.items} busy={busy} activity={stopping ? 'Stopping…' : state.activity} onOpen={(name) => run(() => api.openInExcel(name))} />
-          {awaitingReply && <div className="reply-hint" role="status">{t('The assistant asked you a question: answer it below.')}</div>}
+          {awaitingReply && <div className="reply-hint" role="status">{t('ComptaIA asked you a question: answer it below.')}</div>}
           <form className={`composer${awaitingReply ? ' awaiting' : ''}`} onSubmit={(e) => {
             e.preventDefault()
             if (followUp.trim()) run(async () => { await api.followUp(followUp, lang); setFollowUp('') })
@@ -216,6 +219,7 @@ function AppContent() {
       {settingsOpen && settings && !question && (
         <SettingsDialog info={settings} firstRun={!settings.configured} onClose={() => setSettingsOpen(false)} onChanged={settingsChanged} />
       )}
+      {helpOpen && !question && <HelpDialog onClose={() => setHelpOpen(false)} />}
       {chartOpen && !question && <ChartDialog onClose={() => setChartOpen(false)} />}
       {question && <QuestionDialog question={question} onAnswer={(value) => run(async () => {
         await api.answer(question.id, value)

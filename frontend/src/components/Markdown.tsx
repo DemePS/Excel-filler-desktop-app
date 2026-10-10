@@ -1,4 +1,4 @@
-// Claude's messages are Markdown: headings, lists, bold, tables, code. Rendered without raw HTML;
+// ComptaIA's messages are Markdown: headings, lists, bold, tables, code. Rendered without raw HTML;
 // links are shown, not followed (the window must not navigate away), and images show their text.
 
 import ReactMarkdown from 'react-markdown'

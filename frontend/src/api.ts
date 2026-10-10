@@ -31,9 +31,11 @@ export const api = {
   setAuto: (on: boolean) => call<{ auto: boolean }>('/api/auto', { on }),
   openInExcel: (name: string) => call('/api/open', { text: name }),
   getSettings: () => call<SettingsInfo>('/api/settings'),
-  saveSettings: (api_key: string, model: string) => call<SettingsInfo>('/api/settings', { api_key, model }),
+  saveSettings: (api_key: string) => call<SettingsInfo>('/api/settings', { api_key }),
   removeKey: () => call<SettingsInfo>('/api/settings/key', undefined, 'DELETE'),
   check: () => call<{ ok: boolean; message: string }>('/api/check'),
+  help: (question: string, history: { role: string; text: string }[], language: string) =>
+    call<{ answer: string }>('/api/help', { question, history, language }),
 }
 
 // Sends an error of the window's code to the backend, which writes it to the log file.
@@ -121,7 +123,6 @@ export async function pickDocumentFolder(folder: string): Promise<string | null>
   return window.prompt('Full path of the folder holding the documents, or of any document in it:')
 }
 
-export const KEYS_URL = 'https://console.anthropic.com/settings/keys'
 
 // A link in the window would replace the app itself: the desktop window opens it in the browser.
 export async function openExternal(url: string): Promise<boolean> {

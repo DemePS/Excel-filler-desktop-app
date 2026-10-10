@@ -1,4 +1,4 @@
-"""The Excel-filling agent: which tools Claude gets, its instructions, and how a job is phrased."""
+"""The Excel-filling agent: which tools ComptaIA gets, its instructions, and how a job is phrased."""
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def knowledge_folder() -> Path | None:
 
 def open_folder(folder: str | Path, ui: UI, resume: bool = False, auto: bool = False) -> Path:
     """Start a session on the folder that holds the workbook and the documents. auto: changes are
-    applied without asking (a backup is still kept), and Claude's questions are not asked."""
+    applied without asking (a backup is still kept), and ComptaIA's questions are not asked."""
     register_office_tools()  # read_word, read_powerpoint
     path = session.open_project(folder, ui=ui, tools=TOOLS, system_prompt=SYSTEM_PROMPT, resume=resume, auto=auto, excel_first=True)
     set_auto(auto)
@@ -93,7 +93,7 @@ def open_folder(folder: str | Path, ui: UI, resume: bool = False, auto: bool = F
 
 
 def set_auto(on: bool) -> None:
-    """Auto mode on or off (Claude is told with the next instruction)."""
+    """Auto mode on or off (ComptaIA is told with the next instruction)."""
     if state.auto_mode != on:
         set_auto_mode(on)
 
@@ -111,7 +111,7 @@ def language_hint(language: str) -> str:
 
 
 def job_instruction(workbook: str, documents: list[str], notes: str = "", sheets: list[str] | None = None, language: str = "") -> str:
-    """The instruction for one filling job, as Claude receives it."""
+    """The instruction for one filling job, as ComptaIA receives it."""
     docs = "\n".join(f"- {d}" for d in documents) if documents else "- (the documents in this folder)"
     text = f"Fill the Excel workbook {workbook} using these documents:\n{docs}"
     if state.auto_mode:

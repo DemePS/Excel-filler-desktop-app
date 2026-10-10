@@ -40,7 +40,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
   // Fill a copy next to the workbook, so that the original is never changed (ticked unless the person unticks it).
   const [onCopy, setOnCopy] = useState(true)
   const [filter, setFilter] = useState('')
-  // The workbook's sheets and the ones to fill (none ticked: Claude finds them).
+  // The workbook's sheets and the ones to fill (none ticked: ComptaIA finds them).
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [chosenSheets, setChosenSheets] = useState<string[]>([])
   useEffect(() => {
@@ -100,7 +100,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
         )}
         {sheets.length > 1 && (
           <details className="fold">
-            <summary>{t('Sheets:')} <span className={chosen.length ? '' : 'muted'}>{chosen.length ? chosen.join(', ') : t('The assistant decides')}</span></summary>
+            <summary>{t('Sheets:')} <span className={chosen.length ? '' : 'muted'}>{chosen.length ? chosen.join(', ') : t('ComptaIA decides')}</span></summary>
             <div className="sheets">
               {sheets.map((s) => (
                 <label key={s.name} className="check" title={t('{rows} rows × {cols} columns', { rows: s.rows, cols: s.cols })}>

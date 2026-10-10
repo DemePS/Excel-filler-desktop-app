@@ -62,7 +62,7 @@ def setup_logging() -> None:
     threading.excepthook = lambda args: excepthook(args.exc_type, args.exc_value, args.exc_traceback)
 
 
-ALLOWED_LINKS = ("https://console.anthropic.com/",)
+ALLOWED_LINKS = ("https://platform.deepseek.com/",)
 
 
 def free_port() -> int:
@@ -178,7 +178,7 @@ def main() -> None:
     url = f"http://127.0.0.1:{port}/?token={token}"
     log.info("Backend ready on 127.0.0.1:%s", port)
     from coding_agent.errors import connection_summary
-    log.info("Claude: %s", connection_summary())
+    log.info("ComptaIA: %s", connection_summary())
 
     try:
         if args.browser:

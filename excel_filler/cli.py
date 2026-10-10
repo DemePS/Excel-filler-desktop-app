@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-d", "--dir", default=".", help="Folder holding the workbook and the documents (default: current).")
     parser.add_argument("-n", "--notes", default="", help="Extra instructions, e.g. 'amounts excl. VAT, one row per line item'.")
     parser.add_argument("-s", "--sheet", action="append", default=[], dest="sheets",
-                        help="A sheet to fill (repeat for several); only those can be changed. Default: the assistant finds them.")
+                        help="A sheet to fill (repeat for several); only those can be changed. Default: ComptaIA finds them.")
     parser.add_argument("--auto", action="store_true",
                         help="Auto mode: apply changes without asking (a backup is kept); questions are not asked.")
     parser.add_argument("-r", "--resume", action="store_true", help="Continue the last conversation in this folder.")

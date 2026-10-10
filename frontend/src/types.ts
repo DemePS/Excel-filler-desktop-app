@@ -58,7 +58,6 @@ export type SettingsInfo = {
   configured: boolean
   source: 'saved' | 'environment' | 'foundry' | 'none'
   key_hint: string | null
-  model: string
-  models: { id: string; label: string }[]
+  keys_url: string
   storage: 'credential-manager' | 'session'
 }

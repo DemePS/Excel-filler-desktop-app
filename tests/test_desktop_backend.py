@@ -214,10 +214,10 @@ def test_the_job_log_says_what_the_agent_does(client, folder, monkeypatch, caplo
             if event["type"] == "busy" and event["busy"] is False:
                 break
     lines = [r.getMessage() for r in caplog.records if r.name == "excel-filler.job"]
-    expected = ["Fill costs.xlsx from 1 document(s)", "Job started", "Claude: Reading the workbook first.",
-                "Claude reads the workbook costs.xlsx", "Claude reads invoice.pdf (page 1)",
-                "Claude prepares changes to costs.xlsx", "Question: Apply these cell changes to costs.xlsx?",
-                "You answered: approved", "Done: Modified costs.xlsx (1 cell(s))", "Claude: Filled A2 from invoice.pdf page 1."]
+    expected = ["Fill costs.xlsx from 1 document(s)", "Job started", "ComptaIA: Reading the workbook first.",
+                "ComptaIA reads the workbook costs.xlsx", "ComptaIA reads invoice.pdf (page 1)",
+                "ComptaIA prepares changes to costs.xlsx", "Question: Apply these cell changes to costs.xlsx?",
+                "You answered: approved", "Done: Modified costs.xlsx (1 cell(s))", "ComptaIA: Filled A2 from invoice.pdf page 1."]
     positions = []
     for line in expected:
         found = [i for i, l in enumerate(lines) if line in l]
@@ -435,7 +435,7 @@ def test_the_job_log_names_the_sheet_and_range(client, folder, monkeypatch, capl
         while not (events and events[-1]["type"] == "busy" and events[-1]["busy"] is False):
             events.append(ws.receive_json())
     lines = [r.getMessage() for r in caplog.records if r.name == "excel-filler.job"]
-    assert "Claude reads the workbook costs.xlsx (sheet Costs, A1:B5)" in lines, lines
+    assert "ComptaIA reads the workbook costs.xlsx (sheet Costs, A1:B5)" in lines, lines
 
 
 def test_auto_mode_applies_changes_without_asking(client, folder, monkeypatch):

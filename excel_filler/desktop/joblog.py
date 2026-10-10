@@ -1,8 +1,8 @@
 """A readable log of what the agent does during a job, built from the same events the window gets.
 
 One line per step (job start/end, each tool call with its arguments and outcome, proposed changes, approvals, questions,
-Claude's messages, errors), in the terminal and in the log file. Document contents are not logged,
-only file names, cell counts and Claude's own sentences.
+ComptaIA's messages, errors), in the terminal and in the log file. Document contents are not logged,
+only file names, cell counts and ComptaIA's own sentences.
 """
 
 from __future__ import annotations
@@ -62,13 +62,13 @@ class JobLog:
 
     def _flush_text(self) -> None:
         if "".join(self.text).strip():
-            log.info("Claude: %s", one_line("".join(self.text)))
+            log.info("ComptaIA: %s", one_line("".join(self.text)))
         self.text = []
 
     def _flush_tool(self, detail: str = "") -> None:
         if self.tool:
             words = TOOL_WORDS.get(self.tool, f"uses {self.tool}")
-            log.info("Claude %s%s", words, f" {detail}" if detail else "")
+            log.info("ComptaIA %s%s", words, f" {detail}" if detail else "")
             self.tool = None
 
     def _handle(self, event: dict) -> None:
@@ -81,7 +81,7 @@ class JobLog:
                 self._flush_tool()
                 log.info("Job finished in %.0f s", time.monotonic() - self.started)
         elif kind == "tool":
-            self._flush_text()  # what Claude wrote comes before the tool it then uses
+            self._flush_text()  # what ComptaIA wrote comes before the tool it then uses
             self._flush_tool()
             self.tool = event["name"]
         elif kind == "tool_detail":
@@ -103,7 +103,7 @@ class JobLog:
         elif kind == "confirm":
             log.info("Question: %s", event["question"])
         elif kind == "panel" and event.get("tone") == "question":
-            log.info("Claude asks: %s", one_line(event["title"]))
+            log.info("ComptaIA asks: %s", one_line(event["title"]))
         elif kind == "saved":
             log.info("Workbook saved: %s", event["path"])
         elif kind == "success":

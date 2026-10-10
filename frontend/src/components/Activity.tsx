@@ -1,4 +1,4 @@
-// The job's activity: Claude's messages, what it is doing, and the changes it made or proposed.
+// The job's activity: ComptaIA's messages, what it is doing, and the changes it made or proposed.
 
 import { useEffect, useRef } from 'react'
 import { useLang } from '../i18n'

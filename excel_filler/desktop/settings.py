@@ -1,4 +1,4 @@
-"""The person's Anthropic API key and model, saved on this PC and handed to the agent engine.
+"""The person's DeepSeek API key, saved on this PC and handed to the agent engine.
 
 The key goes to the Windows Credential Manager (through `keyring`), never to a file. When no keyring
 works it is kept in memory for this run only, and the window says so. The model, which is not a secret,
@@ -19,15 +19,10 @@ log = logging.getLogger("excel-filler.settings")
 
 HOME = Path(os.environ["HOME"]).expanduser() if os.environ.get("HOME") else Path.home()
 SETTINGS_FILE = HOME / ".coding-agent" / "excel-filler-settings.json"
-SERVICE, ACCOUNT = "Excel filler", "anthropic-api-key"
+SERVICE, ACCOUNT = "ComptaIA", "deepseek-api-key"
 
-# What the window offers. "" is the engine's default.
-MODELS = [
-    ("", "Default (recommended)"),
-    ("claude-opus-5-5", "Most capable (claude-opus-5-5)"),
-    ("claude-sonnet-5-5", "Balanced: faster and cheaper (claude-sonnet-5-5)"),
-    ("claude-haiku-4-5", "Fastest and cheapest (claude-haiku-4-5)"),
-]
+KEYS_URL = "https://platform.deepseek.com/api_keys"  # where a person gets a key ("Get my API key")
+MODELS = [("", "Default")]  # the one model of the service: the engine's default
 KEY_FORMAT = re.compile(r"[\x21-\x7e]{20,300}")  # visible ASCII, no spaces
 
 
@@ -106,18 +101,13 @@ class Settings:
         self.path = path or SETTINGS_FILE
         self.lock = threading.RLock()  # a save or remove must not run while a job runs: the server takes it
 
-    def model(self) -> str:
-        try:
-            value = json.loads(self.path.read_text(encoding="utf-8")).get("model", "")
-        except (OSError, ValueError, AttributeError):
-            return ""
-        return value if value in dict(MODELS) else ""
-
-    def _write_model(self, model: str) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"model": model}), encoding="utf-8")
-        tmp.replace(self.path)
+    @staticmethod
+    def _apply(key: str) -> None:
+        """Hand the key to the engine: DeepSeek is chosen through its own variables."""
+        from coding_agent import configure
+        os.environ["DEEPSEEK_API_KEY"] = key
+        os.environ["CODEAGENT_PROVIDER"] = "deepseek"
+        configure(api_key="", model="")  # no key of another service: the engine goes to DeepSeek
 
     def saved_key(self) -> str | None:
         try:
@@ -127,24 +117,23 @@ class Settings:
             return None
 
     def load_and_apply(self) -> None:
-        """At startup: hand a saved key and model to the engine."""
-        from coding_agent import configure
+        """At startup: hand a saved key to the engine."""
         key = self.saved_key()
         if key:
-            configure(api_key=key, model=self.model())
+            self._apply(key)
 
-    def save(self, api_key: str, model: str) -> None:
-        from coding_agent import configure
+    def save(self, api_key: str) -> None:
         with self.lock:
             self.store.set(api_key)
-            self._write_model(model)
-            configure(api_key=api_key, model=model)
+            self._apply(api_key)
 
     def remove(self) -> None:
         from coding_agent import config
         with self.lock:
             self.store.delete()
-            config.clear()  # back to the environment (a Foundry setup, or ANTHROPIC_API_KEY)
+            config.clear()  # back to the environment (a Foundry setup)
+            os.environ.pop("DEEPSEEK_API_KEY", None)
+            os.environ.pop("CODEAGENT_PROVIDER", None)
 
     def info(self) -> dict:
         """What the window shows: never the key, only its last four characters."""
@@ -156,7 +145,6 @@ class Settings:
             "configured": provider is not None,
             "source": source,
             "key_hint": saved[-4:] if saved else None,
-            "model": self.model(),
-            "models": [{"id": i, "label": label} for i, label in MODELS],
+            "keys_url": KEYS_URL,
             "storage": "credential-manager" if self.store.persistent else "session",
         }

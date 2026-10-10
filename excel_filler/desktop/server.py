@@ -27,10 +27,10 @@ from pydantic import BaseModel
 
 import anthropic
 from coding_agent import active_provider, make_anthropic_client, session, state
-from coding_agent.config import BACKUP_HOME, DEFAULT_MODEL
+from coding_agent.config import BACKUP_HOME, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
 from coding_agent.errors import redact
 
-from .. import agent, chart
+from .. import agent, chart, help as help_guide
 from . import copies, picker
 from .joblog import JobLog, log as job_log
 from .settings import Settings, valid_key
@@ -146,7 +146,7 @@ class JobIn(BaseModel):
     workbook: str
     documents: list[str] = []
     notes: str = ""
-    sheets: list[str] = []  # the sheets to fill; none: Claude finds them
+    sheets: list[str] = []  # the sheets to fill; none: ComptaIA finds them
     on_copy: bool = False  # fill a copy of the workbook, next to it: the original is not changed
     language: str = ""  # the window's language ("fr"): the agent writes its summary and questions in it
 
@@ -165,9 +165,14 @@ class AnswerIn(BaseModel):
     value: str | None = None
 
 
+class HelpIn(BaseModel):
+    question: str
+    history: list[dict] = []
+    language: str = ""
+
+
 class KeyIn(BaseModel):
     api_key: str
-    model: str = ""
 
 
 class ClientErrorIn(BaseModel):
@@ -210,30 +215,31 @@ def open_file(path: Path) -> None:
 
 
 def connection_problem() -> str | None:
-    """Why the agent cannot reach Claude yet, in plain words (None when the settings look complete)."""
+    """Why the agent cannot reach ComptaIA yet, in plain words (None when the settings look complete)."""
     if active_provider() is None:
-        return "Add your Anthropic API key in Settings to start."
+        return "Add your API key in Settings to start."
     return None
 
 
-def test_key(api_key: str, model: str) -> None:
+def test_key(api_key: str) -> None:
     """One tiny call with this key, before it is saved. Raises HTTPException with a plain message."""
-    client = make_anthropic_client(api_key, max_retries=0, timeout=15)
+    name = "DeepSeek"
+    client = make_anthropic_client(api_key, max_retries=0, timeout=15, base_url=DEEPSEEK_BASE_URL)
     try:
-        client.messages.create(model=model or DEFAULT_MODEL, max_tokens=1, messages=[{"role": "user", "content": "ping"}])
+        client.messages.create(model=DEEPSEEK_MODEL, max_tokens=1, messages=[{"role": "user", "content": "ping"}])
     except (anthropic.AuthenticationError, anthropic.PermissionDeniedError):
-        raise HTTPException(401, "Anthropic did not accept this key. Check that you copied all of it.")
+        raise HTTPException(401, f"{name} did not accept this key. Check that you copied all of it.")
     except anthropic.NotFoundError:
         raise HTTPException(400, "That model is not available to this key. Choose another model, or the default.")
     except anthropic.BadRequestError as e:
         if "credit balance" in str(e).lower():
-            raise HTTPException(402, "The key is valid, but the account has no credit. Add credit at console.anthropic.com "
-                                     "(Plans & Billing), then try again.")
-        raise HTTPException(400, redact(f"Anthropic refused the test: {e.message}")[:300])
-    except (anthropic.APIConnectionError, anthropic.APITimeoutError) as e:
-        raise HTTPException(502, "Could not reach Anthropic. Check your internet connection, VPN or proxy, then try again.")
+            raise HTTPException(402, f"The key is valid, but the account has no credit. Add credit on the {name} website "
+                                     "(billing), then try again.")
+        raise HTTPException(400, redact(f"{name} refused the test: {e.message}")[:300])
+    except (anthropic.APIConnectionError, anthropic.APITimeoutError):
+        raise HTTPException(502, f"Could not reach {name}. Check your internet connection, VPN or proxy, then try again.")
     except anthropic.APIStatusError as e:
-        raise HTTPException(502, redact(f"Anthropic answered with an error (HTTP {e.status_code}). Try again in a moment.")[:300])
+        raise HTTPException(502, redact(f"{name} answered with an error (HTTP {e.status_code}). Try again in a moment.")[:300])
 
 
 def create_app(token: str, desktop: Desktop | None = None, settings: Settings | None = None) -> FastAPI:
@@ -266,22 +272,39 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
     def get_settings():
         return settings.info()
 
+    @app.post("/api/help", dependencies=guarded)
+    def help_answer(body: HelpIn):
+        """The Help button: one answer of the model about using the application (no tools, nothing of the person's)."""
+        question = body.question.strip()
+        if not question:
+            raise HTTPException(400, "Type a question.")
+        if len(question) > help_guide.MAX_QUESTION:
+            raise HTTPException(400, f"Keep the question under {help_guide.MAX_QUESTION} characters.")
+        if active_provider() is None:
+            raise HTTPException(409, connection_problem() or "Add your API key in Settings first.")
+        from coding_agent.config import get_model
+        try:
+            answer = help_guide.ask(session._get_client(), get_model(), question, body.history, body.language)
+        except Exception as e:
+            from coding_agent.errors import describe
+            raise HTTPException(502, redact(describe(e) or f"{type(e).__name__}: {e}")[:300])
+        job_log.info("Help question answered (%d characters)", len(answer))
+        return {"answer": answer or "…"}
+
     @app.post("/api/settings", dependencies=guarded)
     def save_settings(body: KeyIn):
         """Test the key with one tiny call, then save it (Credential Manager) and use it from now on."""
-        key, model = body.api_key.strip(), body.model.strip()
-        if model not in {m["id"] for m in settings.info()["models"]}:
-            raise HTTPException(400, "Unknown model.")
+        key = body.api_key.strip()
         if not valid_key(key):
             raise HTTPException(400, "That does not look like an API key (it is one long line of letters and digits, "
-                                     "starting with sk-ant-).")
+                                     "starting with sk-).")
         if desktop.busy:
             raise HTTPException(409, "Wait for the current job to finish.")
-        test_key(key, model)  # outside the lock: it can take 15 s
+        test_key(key)  # outside the lock: it can take 15 s
         with settings.lock:
             if desktop.busy:
                 raise HTTPException(409, "Wait for the current job to finish.")
-            settings.save(key, model)
+            settings.save(key)
         job_log.info("API key saved (ends with %s)", key[-4:])
         return settings.info()
 
@@ -297,7 +320,7 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
     @app.post("/api/auto", dependencies=guarded)
     def set_auto(body: AutoIn):
         """Auto mode on or off: changes applied without asking (a backup of the workbook is still kept;
-        a workbook whose features saving would damage still asks), and Claude's questions not asked."""
+        a workbook whose features saving would damage still asks), and ComptaIA's questions not asked."""
         if desktop.busy:
             raise HTTPException(409, "Wait for the current job to finish.")
         desktop.auto = body.on
@@ -309,7 +332,7 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
 
     @app.get("/api/check", dependencies=guarded)
     def check():
-        """Can the app reach Claude? A 1-token call; the window shows the answer at startup."""
+        """Can the app reach ComptaIA? A 1-token call; the window shows the answer at startup."""
         if problem := connection_problem():
             return {"ok": False, "message": problem}
         started = time.monotonic()

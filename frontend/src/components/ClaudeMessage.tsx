@@ -1,4 +1,4 @@
-// One of Claude's messages, with a Copy button: the formatted message (tables, bold... kept when
+// One of ComptaIA's messages, with a Copy button: the formatted message (tables, bold... kept when
 // pasted into Word, Outlook or Excel) and its plain text (Markdown) for anything else.
 
 import { useRef, useState } from 'react'

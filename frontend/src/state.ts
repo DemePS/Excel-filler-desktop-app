@@ -10,8 +10,8 @@ export type State = {
   auto: boolean // auto mode: changes applied without asking
   problem: string | null
   lastChange: Item | null // shown with the next approval question
-  lastAsked: string | null // Claude's question, shown with the next text question
-  activity: string // what Claude is doing right now, shown while a job runs
+  lastAsked: string | null // ComptaIA's question, shown with the next text question
+  activity: string // what ComptaIA is doing right now, shown while a job runs
 }
 
 export const initialState: State = {
@@ -90,12 +90,12 @@ function activityOf(state: State, event: AgentEvent): string | null {
   const last = state.items[state.items.length - 1]
   switch (event.type) {
     case 'busy':
-      return event.busy ? 'Starting: the assistant receives the workbook and the documents…' : ''
+      return event.busy ? 'Starting: ComptaIA receives the workbook and the documents…' : ''
     case 'thinking':
-      return 'The assistant is thinking…'
+      return 'ComptaIA is thinking…'
     case 'assistant_start':
     case 'text':
-      return 'The assistant is writing…'
+      return 'ComptaIA is writing…'
     case 'tool':
     case 'tool_detail':
       return last?.kind === 'step' ? doing(last.label, last.detail) + '…' : null
@@ -107,10 +107,10 @@ function activityOf(state: State, event: AgentEvent): string | null {
       return 'Waiting for your answer…'
     case 'answered':
     case 'tool_result':
-      return 'The assistant is looking at the result…'
+      return 'ComptaIA is looking at the result…'
     case 'assistant_end':
-      // The tool Claude asked for runs now: keep saying what it does.
-      return last?.kind === 'step' ? null : 'The assistant is working…'
+      // The tool ComptaIA asked for runs now: keep saying what it does.
+      return last?.kind === 'step' ? null : 'ComptaIA is working…'
     default:
       return null
   }
@@ -142,7 +142,7 @@ function applyEvent(state: State, event: AgentEvent): State {
       return state
     }
     case 'tool_result': {
-      // A tool that failed: shown on its step (Claude usually corrects itself and tries again).
+      // A tool that failed: shown on its step (ComptaIA usually corrects itself and tries again).
       if (event.ok) return state
       const i = items.map((item) => item.kind).lastIndexOf('step')
       if (i < 0) return state
@@ -182,7 +182,7 @@ function applyEvent(state: State, event: AgentEvent): State {
     case 'confirm':
       return { ...state, question: { kind: 'confirm', id: event.id, question: event.question, choices: event.choices, context: state.lastChange } }
     case 'ask': {
-      // Keep Claude's question in the feed; the answer is added when you send it.
+      // Keep ComptaIA's question in the feed; the answer is added when you send it.
       const asked: Item[] = state.lastAsked ? [{ kind: 'claude', text: state.lastAsked }] : []
       return { ...state, items: [...items, ...asked], question: { kind: 'ask', id: event.id, prompt: event.prompt, multiline: event.multiline, context: state.lastAsked }, lastAsked: null }
     }

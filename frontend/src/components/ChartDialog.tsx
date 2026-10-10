@@ -1,4 +1,4 @@
-// The chart of accounts (plan comptable) the assistant looks accounts up in: shows the current file and
+// The chart of accounts (plan comptable) ComptaIA looks accounts up in: shows the current file and
 // replaces it with a PDF, text or CSV file chosen on this PC.
 
 import { useEffect, useState } from 'react'
@@ -36,7 +36,7 @@ export function ChartDialog({ onClose }: { onClose: () => void }) {
       <div className="dialog settings" role="dialog" aria-modal="true" aria-labelledby="chart-title">
         <h2 id="chart-title">{t('Chart of accounts')}</h2>
         <p className="hint">
-          {t('The assistant looks account numbers up in this file and never writes them from memory. Choose the new version (PDF or text): it replaces the current one.')}
+          {t('ComptaIA looks account numbers up in this file and never writes them from memory. Choose the new version (PDF or text): it replaces the current one.')}
         </p>
         <p>
           {info === null ? '…' : info.file
