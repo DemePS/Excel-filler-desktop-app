@@ -274,7 +274,7 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
 
     @app.post("/api/help", dependencies=guarded)
     def help_answer(body: HelpIn):
-        """The Help button: one answer of the model about using the application (no tools, nothing of the person's)."""
+        """"A problem?": the support agent answers from the guide and the end of the log (no tools, separate from the job)."""
         question = body.question.strip()
         if not question:
             raise HTTPException(400, "Type a question.")
@@ -282,19 +282,14 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
             raise HTTPException(400, f"Keep the question under {help_guide.MAX_QUESTION} characters.")
         if active_provider() is None:
             raise HTTPException(409, connection_problem() or "Add your API key in Settings first.")
-        if desktop.folder is not None:
-            # The agent of the job answers, in its own conversation: it knows what it read and why it wrote a value.
-            job_log.info("Help question")
-            with settings.lock:
-                desktop.run(lambda: agent.help_question(question, body.language), question)
-            return {"started": True}
         from coding_agent.config import get_model
         try:
-            answer = help_guide.ask(session._get_client(), get_model(), question, body.history, body.language)
+            answer = help_guide.ask(session._get_client(), get_model(), question, body.history, body.language,
+                                    help_guide.log_tail(redact=redact))
         except Exception as e:
             from coding_agent.errors import describe
             raise HTTPException(502, redact(describe(e) or f"{type(e).__name__}: {e}")[:300])
-        job_log.info("Help question answered (%d characters)", len(answer))
+        job_log.info("Support question answered (%d characters)", len(answer))
         return {"answer": answer or "…"}
 
     @app.post("/api/settings", dependencies=guarded)

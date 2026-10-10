@@ -24,13 +24,15 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .. import help as help_guide
+
 # Settings: a .env in the current folder, or ~/.coding-agent/.env (read before the agent package,
 # which reads its configuration when imported).
 HOME = Path(os.environ["HOME"]).expanduser() if os.environ.get("HOME") else Path.home()
 load_dotenv()
 load_dotenv(HOME / ".coding-agent" / ".env")
 
-LOG_FILE = HOME / ".coding-agent" / "logs" / "excel-filler-desktop.log"
+LOG_FILE = help_guide.LOG_FILE  # the support agent reads the end of this file
 log = logging.getLogger("excel-filler")
 
 

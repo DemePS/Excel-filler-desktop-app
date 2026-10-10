@@ -129,17 +129,6 @@ def job_instruction(workbook: str, documents: list[str], notes: str = "", sheets
     return text
 
 
-def help_question(question: str, language: str = "") -> bool:
-    """A help question to the agent of the job, in the same conversation. No workbook can be changed during this turn."""
-    from . import help as help_guide
-    before = state.excel_writable
-    state.excel_writable = set()  # enforced by the engine: edit_excel refuses every workbook
-    try:
-        return session.send(help_guide.instruction(question, language))
-    finally:
-        state.excel_writable = before
-
-
 def fill(workbook: str, documents: list[str], notes: str = "", sheets: list[str] | None = None, language: str = "") -> bool:
     """Run one filling job to completion. False if it failed (the reason was shown in the UI).
     With sheets, only those sheets of the workbook can be changed (also in follow-up requests)."""

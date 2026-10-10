@@ -52,11 +52,11 @@ const FR: Record<string, string> = {
   'Reading the file and preparing the search…': 'Lecture du fichier et préparation de la recherche…',
   'Chart of accounts updated.': 'Plan comptable mis à jour.',
   'Choose a file…': 'Choisir un fichier…',
-  Help: 'Aide',
-  'Ask how to use ComptaIA': 'Demander comment utiliser ComptaIA',
-  'Ask how to use ComptaIA, or why it filled a value. With a workbook open, the agent that did the work answers in the activity feed.':
-    'Demandez comment utiliser ComptaIA, ou pourquoi une valeur a été remplie. Quand un classeur est ouvert, c’est l’agent qui a fait le travail qui répond, dans le fil d’activité.',
-  'For example: how do I fill only one sheet? What does “Work on a copy” do?': 'Par exemple : comment ne remplir qu’une feuille ? Que fait « Travailler sur une copie » ?',
+  'A problem?': 'Un problème ?',
+  'Questions about using ComptaIA: API key, your data, a value that looks wrong': 'Questions sur l’utilisation de ComptaIA : clé API, vos données, une valeur qui semble fausse',
+  'Describe your problem or ask how ComptaIA works. The end of the application’s log (file names and errors, never document contents) is sent with your question to help find the cause.':
+    'Décrivez votre problème ou demandez comment fonctionne ComptaIA. La fin du journal de l’application (noms de fichiers et erreurs, jamais le contenu des documents) est envoyée avec votre question pour trouver la cause.',
+  'For example: what is an API key? Is my data secure?': 'Par exemple : qu’est-ce qu’une clé API ? Mes données sont-elles sécurisées ?',
   'Your question…': 'Votre question…',
   'Add your API key': 'Ajoutez votre clé API',
   'Get my API key': 'Obtenir ma clé API',

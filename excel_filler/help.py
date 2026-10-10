@@ -1,15 +1,25 @@
-"""The Help button: questions about ComptaIA and about what it did, answered by the agent of the job.
+"""The "A problem?" button: a support agent, separate from the filling job.
 
-With a folder open, the question goes to the same session as the filling (same agent, same conversation,
-so it can explain what it read and why it wrote a value); no workbook can be changed during that turn.
-Before any folder is open there is no job to ask about: a plain call with the guide answers.
+It answers questions about using ComptaIA (API key, data, an error) from a guide of the application and from
+the end of the application's log, which is sent with the question: file names, counts and error messages, never
+the content of documents; keys are hidden. It has no tools: it cannot read or change a workbook, and the filling
+job's conversation is not involved (the box at the bottom of the window is the way to talk to that agent).
 """
 
 from __future__ import annotations
 
+import os
+import re
+from pathlib import Path
+
 MAX_QUESTION = 1000   # characters of one question
 MAX_TURNS = 8         # earlier messages kept, so a long chat does not grow without end
 MAX_ANSWER_TOKENS = 700
+LOG_LINES = 120       # the last lines of the log sent with a question
+LOG_CHARS = 9000
+HOME = Path(os.environ["HOME"]).expanduser() if os.environ.get("HOME") else Path.home()
+LOG_FILE = HOME / ".coding-agent" / "logs" / "excel-filler-desktop.log"
+_KEY_LIKE = re.compile(r"sk-[A-Za-z0-9_\-]{16,}")
 
 INTRO = """\
 You are the help of ComptaIA, a desktop application that fills a person's Excel templates from accounting
@@ -17,7 +27,10 @@ documents. Answer the person's questions about USING the application, briefly (a
 list), in the language of their question. If the question is about something else (general accounting
 questions, writing, code, other software), say that you only help with using ComptaIA and give the
 nearest thing the application can do. Never invent a feature: if the guide below does not say it, say
-that ComptaIA does not do it or that you do not know. You cannot see the person's files or workbook.
+that ComptaIA does not do it or that you do not know. You cannot see the person's files or workbook; you can see
+the end of the application's log (below the guide). When the question is about a problem, look in the log for the
+error, say in plain words what happened and what to do, and quote the log line you rely on. Do not guess when the
+log says nothing.
 """
 
 GUIDE = """\
@@ -49,15 +62,36 @@ How ComptaIA works
 - Privacy: the text and images of the documents that are read are sent to DeepSeek, to be read by the
   model. ComptaIA has no server of its own.
 - ComptaIA does not replace an accountant, does not file returns and does not make payments.
+
+Questions people ask
+- What is an API key? A secret code that identifies your DeepSeek account and lets ComptaIA use the
+  model on your behalf. You create it on DeepSeek's site ("Get my API key" in Settings), and DeepSeek
+  bills you for what you use. Keep it private: whoever has it can use your account. If it leaks, delete
+  it on DeepSeek's site and create another. ComptaIA keeps it in the Windows Credential Manager, not in
+  a file and not in the log.
+- Is my data secure? ComptaIA runs on your PC and has no server or account of its own. Your workbook
+  stays on your PC: it is changed in place (or on a copy) and a backup is kept in ~/.coding-agent/backups.
+  The window talks to a local program reachable only from this PC. The documents ComptaIA reads (their
+  text, or page images for scans) are sent to DeepSeek, to be read by the model: what DeepSeek does with
+  them is set by DeepSeek's own terms, so read them before sending confidential documents. The log
+  (~/.coding-agent/logs) holds file names and counts, not the content of documents.
+- The key is refused: check that the whole key was copied, that it is a DeepSeek key, and that the
+  account has credit.
+- A value looks wrong: ask for a correction in the box at the bottom, or check the source named in the
+  summary; scanned amounts and names must always be checked by a person.
 """
 
 
-def instruction(question: str, language: str = "") -> str:
-    """What the job's agent receives for a help question: the question, the guide, and the rule that it only answers."""
-    name = {"fr": "French", "en": "English"}.get(language)
-    return (f"Help question from the person (not a request to change anything: do not edit any workbook). Answer it "
-            f"briefly, from what you did in this job and from the guide below.{f' Answer in {name}.' if name else ''}\n\n"
-            f"Question: {question[:MAX_QUESTION]}\n\nGuide of the application:\n{GUIDE}")
+def log_tail(path: Path | None = None, redact=lambda text: text) -> str:
+    """The end of the application's log, with keys and the person's home folder hidden ("" when there is none)."""
+    try:
+        text = (path or LOG_FILE).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    text = "\n".join(text.splitlines()[-LOG_LINES:])[-LOG_CHARS:]
+    text = redact(text)
+    text = _KEY_LIKE.sub("[api key hidden]", text)
+    return text.replace(str(HOME), "~")
 
 
 def clean_history(history: list[dict]) -> list[dict]:
@@ -78,9 +112,10 @@ def clean_history(history: list[dict]) -> list[dict]:
     return merged
 
 
-def ask(client, model: str, question: str, history: list[dict], language: str = "") -> str:
-    """One answer of the model to a question about the application."""
-    system = INTRO + GUIDE + (f"\nAnswer in {'French' if language == 'fr' else 'English'}.\n" if language in ("fr", "en") else "")
+def ask(client, model: str, question: str, history: list[dict], language: str = "", log: str = "") -> str:
+    """One answer of the model to a question about the application, with the end of its log."""
+    system = INTRO + GUIDE + f"\nEnd of the application's log (oldest first):\n{log or '(empty)'}\n"
+    system += f"\nAnswer in {'French' if language == 'fr' else 'English'}.\n" if language in ("fr", "en") else ""
     messages = clean_history(history) + [{"role": "user", "content": question[:MAX_QUESTION]}]
     if len(messages) > 1 and messages[-2]["role"] == "user":  # two user turns in a row: merge
         messages[-2]["content"] += "\n" + messages.pop()["content"]

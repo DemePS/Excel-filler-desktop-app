@@ -71,40 +71,35 @@ def test_history_is_bounded_and_alternating():
     assert len(kept) <= 1 and kept[0]["role"] == "user" and "q11" in kept[0]["content"]   # merged: no two user turns in a row
 
 
-# --- with a folder open, the agent of the job answers, and cannot change a workbook ---------------------------------------
-def test_with_a_folder_open_the_agent_of_the_job_answers_and_changes_nothing(tmp_path, monkeypatch):
-    import openpyxl
-    from coding_agent import backups, memory, session, state
-    from .helpers import FakeClaude
-    monkeypatch.setattr(session, "MEMORY_HOME", tmp_path / "memory-home")
-    monkeypatch.setattr(config, "MEMORY_UPDATES", False)
-    monkeypatch.setattr(memory, "MEMORY_UPDATES", False)
-    monkeypatch.setattr(backups, "BACKUP_HOME", tmp_path / "backups")
-    monkeypatch.setenv("ANTHROPIC_FOUNDRY_ENDPOINT", "https://x.services.ai.azure.com/anthropic")
-    folder = tmp_path / "job"
-    folder.mkdir()
-    wb = openpyxl.Workbook()
-    wb.active.title = "Costs"
-    wb.active.append(["Item", "Qty"])
-    wb.save(folder / "costs.xlsx")
-    fake = FakeClaude([
-        ([("edit_excel", {"path": "costs.xlsx", "changes": [{"sheet": "Costs", "cell": "A2", "value": "sneaky"}]})], "tool_use"),
-        ([("text", "I filled nothing: I only answer questions.")], "end_turn"),
-    ])
-    monkeypatch.setattr(session, "_get_client", fake.client)
-    client = TestClient(create_app(TOKEN), headers={"x-token": TOKEN})
-    client.post("/api/folder", json={"path": str(folder)})
-    with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
-        ws.receive_json()
-        r = client.post("/api/help", json={"question": "Why did you put 12 in B2?", "language": "en"})
-        assert r.status_code == 200 and r.json() == {"started": True}
-        while True:
-            event = ws.receive_json()
-            if event["type"] == "busy" and event["busy"] is False:
-                break
-    sent = str(fake.requests[0]["messages"][-1]["content"])
-    assert "Why did you put 12 in B2?" in sent and "How ComptaIA works" in sent             # the question and the guide
-    assert openpyxl.load_workbook(folder / "costs.xlsx")["Costs"]["A2"].value is None        # nothing written
-    result = fake.tool_results(1)["edit"]
-    assert result.get("is_error") and "Only the workbook chosen" in str(result["content"])
-    assert state.excel_writable != set()                                                       # restored after the turn
+# --- the support agent reads the end of the log -------------------------------------------------------------------------
+def test_the_log_tail_is_sent_with_keys_and_the_home_folder_hidden(helped, tmp_path, monkeypatch):
+    client, settings, fake = helped
+    settings.save("sk-" + "x" * 30)
+    log = tmp_path / "app.log"
+    log.write_text("\n".join(["old line"] * 300 + [
+        f"2026-10-10 INFO excel-filler: Key sk-{'a' * 32} was refused",
+        f"2026-10-10 ERROR excel-filler: cannot open {help_guide.HOME}/Documents/costs.xlsx",
+        "2026-10-10 ERROR excel-filler.job: DeepSeek answered with an error (HTTP 402)"]), encoding="utf-8")
+    monkeypatch.setattr(help_guide, "LOG_FILE", log)
+    r = client.post("/api/help", json={"question": "Why does it not work?"})
+    assert r.status_code == 200
+    system = fake.calls[0]["system"]
+    assert "HTTP 402" in system and "~/Documents/costs.xlsx" in system                    # the recent lines, the home folder hidden
+    assert "sk-" + "a" * 32 not in system and "[api key hidden]" in system
+    assert system.count("old line") <= help_guide.LOG_LINES                                 # only the end of the log
+    assert "tools" not in fake.calls[0]
+
+
+def test_no_log_is_not_an_error(helped, tmp_path, monkeypatch):
+    client, settings, fake = helped
+    settings.save("sk-" + "x" * 30)
+    monkeypatch.setattr(help_guide, "LOG_FILE", tmp_path / "missing.log")
+    assert client.post("/api/help", json={"question": "Hi"}).status_code == 200
+    assert "(empty)" in fake.calls[0]["system"]
+
+
+def test_the_support_agent_works_while_a_job_runs_and_does_not_touch_it(helped):
+    client, settings, fake = helped
+    settings.save("sk-" + "x" * 30)
+    client.app.state.desktop.busy = True            # a filling job is running
+    assert client.post("/api/help", json={"question": "Is it stuck?"}).status_code == 200

@@ -1,5 +1,4 @@
-// The Help button: a question about ComptaIA or about what it did. With a workbook open it goes to the agent of the
-// job (same conversation, the answer appears in the activity feed); before that, a short answer from the guide.
+// "A problem?": a support agent, separate from the job, answers from the guide and the end of the log.
 
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
@@ -29,9 +28,8 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
     const history = turns
     setTurns([...history, { role: 'user', text }])
     try {
-      const result = await api.help(text, history, lang)
-      if (result.started) { onClose(); return }  // the agent of the job answers in the activity feed
-      setTurns((all) => [...all, { role: 'assistant', text: result.answer ?? '…' }])
+      const { answer } = await api.help(text, history, lang)
+      setTurns((all) => [...all, { role: 'assistant', text: answer }])
     } catch (e) {
       setError((e as Error).message)
       setQuestion(text)
@@ -44,10 +42,10 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="backdrop">
       <div className="dialog help" role="dialog" aria-modal="true" aria-labelledby="help-title">
-        <h2 id="help-title">{t('Help')}</h2>
-        <p className="hint muted">{t('Ask how to use ComptaIA, or why it filled a value. With a workbook open, the agent that did the work answers in the activity feed.')}</p>
+        <h2 id="help-title">{t('A problem?')}</h2>
+        <p className="hint muted">{t('Describe your problem or ask how ComptaIA works. The end of the application’s log (file names and errors, never document contents) is sent with your question to help find the cause.')}</p>
         <div className="help-log">
-          {turns.length === 0 && <p className="muted">{t('For example: how do I fill only one sheet? What does “Work on a copy” do?')}</p>}
+          {turns.length === 0 && <p className="muted">{t('For example: what is an API key? Is my data secure?')}</p>}
           {turns.map((turn, i) => turn.role === 'user'
             ? <p key={i} className="help-you">{turn.text}</p>
             : <div key={i} className="help-answer"><Markdown text={turn.text} /></div>)}
