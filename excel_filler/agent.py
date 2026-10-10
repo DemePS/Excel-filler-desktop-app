@@ -13,7 +13,7 @@ from .office_tools import register_office_tools
 
 # Only what filling a workbook needs: look around the folder, read and search documents, read and write the
 # workbook, and ask the person. No code execution, deletion, git or network.
-TOOLS = ["list_directory", "read_file", "read_pdf", "read_word", "search_library", "view_image", "read_excel", "edit_excel", "ask_human"]
+TOOLS = ["list_directory", "read_file", "read_pdf", "read_word", "read_powerpoint", "search_library", "view_image", "read_excel", "edit_excel", "ask_human"]
 
 SYSTEM_PROMPT = """You fill Excel workbooks with information taken from documents (PDF invoices,
 statements, reports, scans, images). You work in the folder {workspace}; paths are relative to it.
@@ -33,7 +33,7 @@ Work from the workbook to the documents, in this order:
    price in EUR; per invoice: number, date, supplier") before reading any document.
 3. Read the documents looking for those fields only: skim long PDFs with read_pdf mode "text" to
    find the right pages, then read those pages in visual mode (tables, scans). Use view_image for
-   image files, read_word for Word (.docx) files and read_file for text and CSV files.
+   image files, read_word for Word (.docx) files, read_powerpoint for PowerPoint (.pptx) files and read_file for text and CSV files.
 4. Write the values with edit_excel in batches. Keep the sheet's units, formats and layout; put
    dates as dates (as_date) and numbers as numbers, not text. The person approves each batch.
 5. Read the cells back with read_excel to check them.
@@ -76,7 +76,7 @@ def knowledge_folder() -> Path | None:
 def open_folder(folder: str | Path, ui: UI, resume: bool = False, auto: bool = False) -> Path:
     """Start a session on the folder that holds the workbook and the documents. auto: changes are
     applied without asking (a backup is still kept), and Claude's questions are not asked."""
-    register_office_tools()  # read_word
+    register_office_tools()  # read_word, read_powerpoint
     path = session.open_project(folder, ui=ui, tools=TOOLS, system_prompt=SYSTEM_PROMPT, resume=resume, auto=auto, excel_first=True)
     set_auto(auto)
     # Guardrails in the harness, not only in the instructions: a formula can neither be written nor changed or cleared.

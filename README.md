@@ -9,7 +9,7 @@ Microsoft Foundry.
   template first to see which cells, columns and formats are expected, never overwrites a formula, and can work
   on a copy so the original is never changed.
 - **Reads your documents**: PDF (text, and scans through OCR or by looking at the page), images (PNG, JPG, WebP,
-  GIF), Word (`.docx`: text and tables), text and CSV files.
+  GIF), Word (`.docx`: text and tables), PowerPoint (`.pptx`: text and notes), text and CSV files.
 - **Uses the accounting rules you give it**: with a knowledge folder (`EXCEL_FILLER_KNOWLEDGE`) holding, for
   example, the *Plan comptable général* 2026 and the tax texts, it looks account numbers and rules up in them
   instead of writing them from memory, and leaves a cell empty when it cannot find one.

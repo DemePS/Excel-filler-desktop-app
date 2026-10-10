@@ -188,9 +188,9 @@ def test_add_documents_from_subfolders_and_other_folders(client, folder, tmp_pat
     assert r.status_code == 200 and r.json()["added"] == [absolute]  # from anywhere, by absolute path
     from coding_agent import state
     assert other.resolve() in state.read_roots  # its folder is readable (not writable) by the agent
-    (other / "slides.pptx").write_bytes(b"x")  # a type that is not read
-    r = client.post("/api/documents", json={"paths": [str(other / "slides.pptx")]})
-    assert r.status_code == 400 and "slides.pptx" in r.json()["detail"]
+    (other / "notes.odt").write_bytes(b"x")  # a type that is not read
+    r = client.post("/api/documents", json={"paths": [str(other / "notes.odt")]})
+    assert r.status_code == 400 and "notes.odt" in r.json()["detail"]
 
 
 def test_the_job_log_says_what_the_agent_does(client, folder, monkeypatch, caplog):
@@ -300,7 +300,7 @@ def test_choose_a_documents_folder_elsewhere(client, folder, tmp_path):
     empty = tmp_path / "empty"
     empty.mkdir()
     r = client.post("/api/document-folder", json={"path": str(empty)})
-    assert r.status_code == 400 and "No PDF, Word or image" in r.json()["detail"]
+    assert r.status_code == 400 and "No PDF, Word, PowerPoint or image" in r.json()["detail"]
     assert client.post("/api/document-folder", json={"path": str(tmp_path / "nope")}).status_code == 400
 
 

@@ -137,7 +137,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
           <input type="search" className="filter" placeholder={t('Filter…')} value={filter} aria-label={t('Filter documents')}
             onChange={(e) => setFilter(e.target.value)} />
         )}
-        {listing.documents.length === 0 && <p className="muted">{t('No PDF, Word or image in this folder yet.')}</p>}
+        {listing.documents.length === 0 && <p className="muted">{t('No PDF, Word, PowerPoint or image in this folder yet.')}</p>}
         <div className="documents">
           {shown.length === 0 && filter && <p className="muted">{t('No document matches')} “{filter}”.</p>}
           {shown.map((d) => (

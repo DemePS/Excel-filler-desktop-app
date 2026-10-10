@@ -91,3 +91,47 @@ def test_a_job_reads_a_word_document(world, monkeypatch):
     result = fake.tool_results(2)["read"]["content"]
     assert "W-2026-17" in str(result) and "Câble réseau 20 m | 4 | 11,50" in str(result)    # the agent received the document's text
     assert openpyxl.load_workbook(folder / "costs.xlsx")["Costs"]["B2"].value == 4
+
+
+# --- PowerPoint -------------------------------------------------------------------------------------------------------
+A = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+
+
+def make_pptx(path, slides, notes=None):
+    def xml(paragraphs):
+        body = "".join(f"<a:p><a:r><a:t>{t}</a:t></a:r></a:p>" for t in paragraphs)
+        return f'<?xml version="1.0"?><p:sld {A} xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld>{body}</p:cSld></p:sld>'
+    with zipfile.ZipFile(path, "w") as z:
+        for i, paragraphs in enumerate(slides, 1):
+            z.writestr(f"ppt/slides/slide{i}.xml", xml(paragraphs))
+        for i, paragraphs in (notes or {}).items():
+            z.writestr(f"ppt/notesSlides/notesSlide{i}.xml", xml(paragraphs))
+
+
+def test_read_powerpoint_gives_the_slides_in_order_with_their_notes(tmp_path, monkeypatch):
+    monkeypatch.setattr(state, "workspace", tmp_path)
+    monkeypatch.setattr(state, "cwd", tmp_path)
+    make_pptx(tmp_path / "deck.pptx", [["Budget 2026", "Total 12 400 EUR"], ["Charges", "Loyer 3 200"]] + [["slide ten"]] * 8 + [["last"]],
+              notes={2: ["Verify the rent with the lease"]})
+    text = office_tools.read_powerpoint("deck.pptx")
+    assert "--- slide 1 ---\nBudget 2026\nTotal 12 400 EUR" in text
+    assert "--- slide 2 ---\nCharges\nLoyer 3 200\n(notes) Verify the rent with the lease" in text
+    assert text.index("--- slide 2 ---") < text.index("--- slide 10 ---") < text.index("--- slide 11 ---")      # numeric order, not 1, 10, 11, 2
+
+
+def test_read_powerpoint_refuses_what_is_not_a_readable_pptx(tmp_path, monkeypatch):
+    monkeypatch.setattr(state, "workspace", tmp_path)
+    monkeypatch.setattr(state, "cwd", tmp_path)
+    (tmp_path / "old.ppt").write_bytes(b"x")
+    (tmp_path / "fake.pptx").write_bytes(b"not a zip")
+    (tmp_path / "a.docx").write_bytes(b"x")
+    for name, message in (("old.ppt", "old .ppt"), ("fake.pptx", "not a valid .pptx"), ("a.docx", "not a .pptx"), ("missing.pptx", "File not found")):
+        with pytest.raises(ToolError, match=message):
+            office_tools.read_powerpoint(name)
+
+
+def test_a_pptx_is_a_listed_document_and_the_tool_is_offered(world):
+    client, folder = world
+    make_pptx(folder / "deck.pptx", [["Hello"]])
+    assert "deck.pptx" in client.post("/api/folder", json={"path": str(folder)}).json()["documents"]
+    assert "read_powerpoint" in agent.TOOLS

@@ -35,7 +35,7 @@ def main() -> None:
     except NotADirectoryError as e:
         raise SystemExit(str(e))
     workbooks = sorted(p.name for p in folder.glob("*.xls[xm]") if not p.name.startswith("~$"))
-    documents = sorted(p.name for p in folder.iterdir() if p.suffix.lower() in (".pdf", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".txt", ".csv"))
+    documents = sorted(p.name for p in folder.iterdir() if p.suffix.lower() in (".pdf", ".docx", ".pptx", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".txt", ".csv"))
     print(f"Folder: {folder}\nWorkbooks: {', '.join(workbooks) or '(none)'}\nDocuments: {', '.join(documents) or '(none)'}")
     workbook = args.workbook or (workbooks[0] if len(workbooks) == 1 else input("Workbook to fill: ").strip())
     if not (folder / workbook).is_file() and not Path(workbook).name.lower().endswith((".xlsx", ".xlsm")):

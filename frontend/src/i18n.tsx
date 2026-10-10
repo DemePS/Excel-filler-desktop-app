@@ -61,7 +61,7 @@ const FR: Record<string, string> = {
   'Use the workbook’s folder': 'Utiliser le dossier du classeur',
   'Filter…': 'Filtrer…',
   'Filter documents': 'Filtrer les documents',
-  'No PDF, Word or image in this folder yet.': 'Aucun PDF, Word ni image dans ce dossier.',
+  'No PDF, Word, PowerPoint or image in this folder yet.': 'Aucun PDF, Word, PowerPoint ni image dans ce dossier.',
   'No document matches': 'Aucun document ne correspond à',
   'Add files…': 'Ajouter des fichiers…',
   'Add the PDFs and images of another folder: pick any document in it': 'Ajouter les PDF et images d’un autre dossier : choisissez-y un document',

@@ -37,7 +37,7 @@ from .settings import Settings, valid_key
 from .webui import WebUI
 
 STATIC_DIR = Path(__file__).parent / "static"
-DOCUMENT_TYPES = (".pdf", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".txt", ".csv")
+DOCUMENT_TYPES = (".pdf", ".docx", ".pptx", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".txt", ".csv")
 
 
 class Desktop:
@@ -392,7 +392,7 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
             raise HTTPException(400, f"Not a folder: {folder}")
         paths = folder_documents(folder)
         if not paths:
-            raise HTTPException(400, f"No PDF, Word or image in {folder} (documents in its subfolders are not included).")
+            raise HTTPException(400, f"No PDF, Word, PowerPoint or image in {folder} (documents in its subfolders are not included).")
         inside = folder == desktop.folder or desktop.folder in folder.parents
         if not inside:
             session.add_read_folder(folder)
