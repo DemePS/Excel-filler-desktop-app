@@ -58,3 +58,19 @@ def test_without_the_variable_the_default_folder_is_used_once_it_exists(tmp_path
     assert agent.knowledge_folder() is None
     (tmp_path / "default").mkdir()
     assert agent.knowledge_folder() == (tmp_path / "default").resolve()
+
+
+def test_a_knowledge_folder_of_an_earlier_version_is_moved_out_of_the_protected_folder(tmp_path):
+    legacy = tmp_path / ".coding-agent" / "excel-filler-knowledge"
+    legacy.mkdir(parents=True)
+    (legacy / "plan-comptable.pdf").write_bytes(b"%PDF")
+    target = tmp_path / "ComptaIA" / "base-de-connaissance"
+    assert chart.migrate_legacy(legacy, target) is True
+    assert (target / "plan-comptable.pdf").is_file() and not legacy.exists()
+    assert chart.migrate_legacy(legacy, target) is False                       # nothing left to move
+    legacy.mkdir()
+    assert chart.migrate_legacy(legacy, target) is False and legacy.exists()   # never over an existing folder
+
+
+def test_the_default_folder_is_not_one_the_engine_refuses_to_read():
+    assert ".coding-agent" not in chart.DEFAULT_FOLDER.parts

@@ -16,11 +16,24 @@ from coding_agent import index
 
 NAME = "plan-comptable"
 TYPES = (".pdf", *index.TEXT_SUFFIXES)  # what search_library reads: a CSV or a workbook of accounts would never be found
-DEFAULT_FOLDER = Path.home() / ".coding-agent" / "excel-filler-knowledge"
+# Not under ~/.coding-agent: the engine never reads there (credentials, its own settings), so the agent could
+# search the chart (the index) but not open its pages.
+DEFAULT_FOLDER = Path.home() / "ComptaIA" / "base-de-connaissance"
+LEGACY_FOLDER = Path.home() / ".coding-agent" / "excel-filler-knowledge"  # where an earlier version put it
 
 
 class ChartError(Exception):
     """A reason the chart could not be updated, in words for the person."""
+
+
+def migrate_legacy(legacy: Path | None = None, target: Path | None = None) -> bool:
+    """Move the knowledge folder of an earlier version to its new place (once). True when it was moved."""
+    legacy, target = legacy or LEGACY_FOLDER, target or DEFAULT_FOLDER
+    if not legacy.is_dir() or target.exists():
+        return False
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(legacy), str(target))
+    return True
 
 
 def current(folder: Path) -> Path | None:

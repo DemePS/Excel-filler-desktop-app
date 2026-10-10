@@ -24,7 +24,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .. import help as help_guide
+from .. import chart, help as help_guide
 
 # Settings: a .env in the current folder, or ~/.coding-agent/.env (read before the agent package,
 # which reads its configuration when imported).
@@ -155,6 +155,8 @@ def main() -> None:
     parser.add_argument("--browser", action="store_true", help="Open in the default browser instead of a window.")
     args = parser.parse_args()
     setup_logging()
+    if not os.environ.get("EXCEL_FILLER_KNOWLEDGE") and chart.migrate_legacy():
+        log.info("Knowledge folder moved to %s", chart.DEFAULT_FOLDER)
     log.info("Starting (Python %s, %s); log file: %s", sys.version.split()[0], sys.platform, LOG_FILE)
 
     import uvicorn
