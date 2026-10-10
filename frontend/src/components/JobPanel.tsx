@@ -7,7 +7,7 @@ import type { Listing, Sheet } from '../types'
 type Props = {
   listing: Listing
   busy: boolean
-  onFill: (workbook: string, documents: string[], notes: string, sheets: string[]) => void
+  onFill: (workbook: string, documents: string[], notes: string, sheets: string[], copy: boolean) => void
   onAddDocuments: () => void
   auto: boolean
   onAuto: (on: boolean) => void
@@ -35,6 +35,8 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
   const [workbook, setWorkbook] = useState('')
   const [documents, setDocuments] = useState<string[]>([])
   const [notes, setNotes] = useState('')
+  // Fill a copy next to the workbook, so that the original is never changed (ticked unless the person unticks it).
+  const [onCopy, setOnCopy] = useState(true)
   const [filter, setFilter] = useState('')
   // The workbook's sheets and the ones to fill (none ticked: Claude finds them).
   const [sheets, setSheets] = useState<Sheet[]>([])
@@ -156,15 +158,19 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
       </details>
 
       <div className="fill">
+        <label className={`auto-switch${onCopy ? ' on' : ''}`} title="The workbook is copied next to the original (for example costs (copy).xlsx) and the copy is filled. The original is not changed.">
+          <input type="checkbox" checked={onCopy} disabled={busy} onChange={(e) => setOnCopy(e.target.checked)} />
+          <span>Work on a copy <small>{onCopy ? 'the original is not changed' : 'the agent writes into the workbook itself'}</small></span>
+        </label>
         <label className={`auto-switch${auto ? ' on' : ''}`} title="Changes are applied without asking you; questions are not asked (missing values are left empty and listed)">
           <input type="checkbox" checked={auto} disabled={busy} onChange={(e) => onAuto(e.target.checked)} />
           <span>Auto mode <small>{auto ? 'changes are saved without asking' : 'you approve each change'}</small></span>
         </label>
         <button className="primary wide" disabled={busy || !workbook || documents.length === 0}
-          onClick={() => onFill(workbook, documents, notes, chosen)}>
+          onClick={() => onFill(workbook, documents, notes, chosen, onCopy)}>
           Fill workbook
         </button>
-        <p className="copy-hint" role="note">⚠ Keep a copy of {workbook || 'the workbook'} first: the agent writes into it.</p>
+        {!onCopy && <p className="copy-hint" role="note">⚠ Keep a copy of {workbook || 'the workbook'} first: the agent writes into it.</p>}
       </div>
     </aside>
   )

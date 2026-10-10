@@ -60,7 +60,7 @@ def test_a_whole_job_through_the_api(client, folder, monkeypatch):
     with client.websocket_connect(f"/ws?token={TOKEN}") as ws:
         hello = ws.receive_json()
         assert hello["type"] == "hello" and hello["workbooks"] == ["costs.xlsx"]
-        assert client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]}).json() == {"started": True}
+        assert client.post("/api/job", json={"workbook": "costs.xlsx", "documents": ["invoice.pdf"]}).json() == {"started": True, "workbook": "costs.xlsx"}
         events = []
         while True:
             event = ws.receive_json()

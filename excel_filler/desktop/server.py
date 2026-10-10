@@ -31,7 +31,7 @@ from coding_agent.config import BACKUP_HOME, DEFAULT_MODEL
 from coding_agent.errors import redact
 
 from .. import agent
-from . import picker
+from . import copies, picker
 from .joblog import JobLog, log as job_log
 from .settings import Settings, valid_key
 from .webui import WebUI
@@ -147,6 +147,7 @@ class JobIn(BaseModel):
     documents: list[str] = []
     notes: str = ""
     sheets: list[str] = []  # the sheets to fill; none: Claude finds them
+    on_copy: bool = False  # fill a copy of the workbook, next to it: the original is not changed
 
 
 class TextIn(BaseModel):
@@ -462,9 +463,20 @@ def create_app(token: str, desktop: Desktop | None = None, settings: Settings | 
         with settings.lock:  # not while a key is being saved
             if problem := connection_problem():
                 raise HTTPException(400, problem)
-            desktop.run(lambda: agent.fill(body.workbook, body.documents, body.notes, body.sheets),
-                        job_request(body.workbook, body.documents, body.notes, body.sheets))
-        return {"started": True}
+            if desktop.busy:
+                raise HTTPException(409, "Wait for the current job to finish.")
+            workbook = body.workbook
+            if body.on_copy:  # the job fills a copy; the original is never opened for writing
+                try:
+                    workbook = copies.make_copy(desktop.folder, body.workbook)
+                except (ValueError, OSError) as e:
+                    raise HTTPException(400, str(e))
+                job_log.info("Working on a copy: %s", workbook)
+                desktop.workbook = workbook
+                desktop.ui.emit({"type": "listing", **desktop.listing()})
+            desktop.run(lambda: agent.fill(workbook, body.documents, body.notes, body.sheets),
+                        job_request(workbook, body.documents, body.notes, body.sheets))
+        return {"started": True, "workbook": workbook}
 
     @app.post("/api/followup", dependencies=guarded)
     def follow_up(body: TextIn):

@@ -188,7 +188,7 @@ export default function App() {
       <main style={{ gridTemplateColumns: `${sidebarWidth}px auto minmax(0, 1fr)` }}>
         <JobPanel listing={listing} busy={busy} auto={state.auto} onAuto={(on) => run(() => api.setAuto(on))} onAddDocuments={addDocuments} onAddDocumentFolder={addDocumentFolder}
           onChangeDocumentFolder={changeDocumentFolder} onResetDocumentFolder={resetDocumentFolder} selection={selection}
-          onFill={(workbook, documents, notes, sheets) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes, sheets) })} />
+          onFill={(workbook, documents, notes, sheets, copy) => run(() => { dispatch({ kind: 'reset' }); return api.startJob(workbook, documents, notes, sheets, copy) })} />
         <Splitter width={sidebarWidth} onResize={setSidebarWidth} />
         <section className="feed">
           <Activity items={state.items} busy={busy} activity={stopping ? 'Stopping…' : state.activity} onOpen={(name) => run(() => api.openInExcel(name))} />

@@ -22,7 +22,8 @@ export const api = {
   addDocumentFolder: (path: string) => call<Listing & { added: string[] }>('/api/document-folder', { path }),
   changeDocumentFolder: (path: string) => call<Listing & { added: string[] }>('/api/document-folder/change', { path }),
   resetDocumentFolder: () => call<Listing>('/api/document-folder/reset', {}),
-  startJob: (workbook: string, documents: string[], notes: string, sheets: string[]) => call('/api/job', { workbook, documents, notes, sheets }),
+  startJob: (workbook: string, documents: string[], notes: string, sheets: string[], copy: boolean) =>
+    call<{ started: boolean; workbook: string }>('/api/job', { workbook, documents, notes, sheets, on_copy: copy }),
   sheets: (workbook: string) => call<{ sheets: Sheet[] }>(`/api/sheets?workbook=${encodeURIComponent(workbook)}`),
   followUp: (text: string) => call('/api/followup', { text }),
   answer: (id: string, value: string | null) => call('/api/answer', { id, value }),
