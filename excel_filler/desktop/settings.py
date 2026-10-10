@@ -24,9 +24,9 @@ SERVICE, ACCOUNT = "Excel filler", "anthropic-api-key"
 # What the window offers. "" is the engine's default.
 MODELS = [
     ("", "Default (recommended)"),
-    ("claude-opus-5-5", "Claude Opus 5.5 (most capable)"),
-    ("claude-sonnet-5-5", "Claude Sonnet 5.5 (faster, cheaper)"),
-    ("claude-haiku-4-5", "Claude Haiku 4.5 (fastest, cheapest)"),
+    ("claude-opus-5-5", "Most capable (claude-opus-5-5)"),
+    ("claude-sonnet-5-5", "Balanced: faster and cheaper (claude-sonnet-5-5)"),
+    ("claude-haiku-4-5", "Fastest and cheapest (claude-haiku-4-5)"),
 ]
 KEY_FORMAT = re.compile(r"[\x21-\x7e]{20,300}")  # visible ASCII, no spaces
 

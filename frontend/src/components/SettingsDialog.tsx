@@ -58,11 +58,12 @@ export function SettingsDialog({ info, firstRun, onClose, onChanged }: Props) {
         <form onSubmit={(e) => { e.preventDefault(); if (key.trim() && !busy) save() }} autoComplete="off">
           <h2 id="settings-title">{firstRun ? t('Add your Anthropic API key') : t('Settings')}</h2>
           <p className="hint">
-            {t('Excel filler uses Claude through your own Anthropic account; Anthropic bills you directly for what you use.')}{' '}
+            {t('ComptaIA uses an AI model through your own Anthropic account; Anthropic bills you directly for what you use.')}{' '}
             {hasNativeWindow()
               ? <button type="button" className="link" onClick={() => openExternal(KEYS_URL)}>{t('Get a key')}</button>
               : <>{t('Get a key at')} <code>{KEYS_URL}</code></>}
           </p>
+          <p className="hint muted">{t('ComptaIA is not affiliated with Anthropic, Microsoft or any model provider.')}</p>
           {hasKey && <p className="hint">{t('A key ending in')} <b>{info.key_hint}</b> {t('is saved. Paste a new one to replace it.')}</p>}
           {info.source === 'foundry' && <p className="hint">{t('Currently using the Azure Foundry setup of this PC. A key saved here is used instead.')}</p>}
           <label htmlFor="api-key">{t('API key')}</label>

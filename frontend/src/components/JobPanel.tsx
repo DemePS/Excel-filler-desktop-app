@@ -100,7 +100,7 @@ export function JobPanel({ listing, busy, onFill, onAddDocuments, onAddDocumentF
         )}
         {sheets.length > 1 && (
           <details className="fold">
-            <summary>{t('Sheets:')} <span className={chosen.length ? '' : 'muted'}>{chosen.length ? chosen.join(', ') : t('Claude decides')}</span></summary>
+            <summary>{t('Sheets:')} <span className={chosen.length ? '' : 'muted'}>{chosen.length ? chosen.join(', ') : t('The assistant decides')}</span></summary>
             <div className="sheets">
               {sheets.map((s) => (
                 <label key={s.name} className="check" title={t('{rows} rows × {cols} columns', { rows: s.rows, cols: s.cols })}>

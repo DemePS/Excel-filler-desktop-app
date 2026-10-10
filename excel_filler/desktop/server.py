@@ -239,7 +239,7 @@ def test_key(api_key: str, model: str) -> None:
 def create_app(token: str, desktop: Desktop | None = None, settings: Settings | None = None) -> FastAPI:
     desktop = desktop or Desktop()
     settings = settings or Settings()
-    app = FastAPI(title="Excel filler", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="ComptaIA", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.desktop = desktop
     app.state.settings = settings
 

@@ -119,7 +119,7 @@ def open_dialog():
 
 def run_in_browser(url: str) -> None:
     webbrowser.open(url)
-    print(f"Excel filler is running at:\n  {url}\nKeep this window open; press Ctrl+C to quit.", flush=True)
+    print(f"ComptaIA is running at:\n  {url}\nKeep this window open; press Ctrl+C to quit.", flush=True)
     try:
         while True:
             time.sleep(1)
@@ -138,12 +138,12 @@ def native_window_possible() -> bool:
 def run_in_window(url: str) -> None:
     import webview
     api = WindowApi()
-    api._window = webview.create_window("Excel filler", url, js_api=api, width=1280, height=820, min_size=(900, 600))
+    api._window = webview.create_window("ComptaIA", url, js_api=api, width=1280, height=820, min_size=(900, 600))
     webview.start()
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Excel filler desktop window.")
+    parser = argparse.ArgumentParser(description="ComptaIA desktop window.")
     parser.add_argument("--browser", action="store_true", help="Open in the default browser instead of a window.")
     args = parser.parse_args()
     setup_logging()

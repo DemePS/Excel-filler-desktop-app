@@ -17,10 +17,12 @@ dependencies = [
 ]
 
 [project.scripts]
-excel-filler = "excel_filler.cli:main"
+comptaia = "excel_filler.cli:main"
+excel-filler = "excel_filler.cli:main"  # the former name, kept so scripts keep working
 # A console command for now, so errors are visible (they also go to the log file). The Windows
 # installer will start the window without a console.
-excel-filler-desktop = "excel_filler.desktop.app:main"
+comptaia-desktop = "excel_filler.desktop.app:main"
+excel-filler-desktop = "excel_filler.desktop.app:main"  # the former name
 
 [dependency-groups]
 dev = ["pytest==9.1.1"]

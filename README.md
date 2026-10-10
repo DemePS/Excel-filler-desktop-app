@@ -1,4 +1,4 @@
-# Excel-filler-desktop-app
+# ComptaIA
 
 Fill an Excel workbook from PDF documents with Claude, reviewing every change before it is saved. It
 runs on your own Anthropic API key (entered in the window) or on Azure / Microsoft Foundry.
@@ -20,18 +20,27 @@ This project only adds:
 | | |
 |---|---|
 | `excel_filler/agent.py` | the tools Claude gets (read documents, read/write the workbook, ask you; no code execution, deletion or network), its instructions, and how a job is phrased |
-| `excel_filler/cli.py` | the `excel-filler` terminal command |
+| `excel_filler/cli.py` | the `comptaia` terminal command |
 | `excel_filler/desktop/` | the desktop window: a local FastAPI backend (127.0.0.1, per-launch token) running the agent in a worker thread, `WebUI` sending the agent's UI calls to the window over a WebSocket, and `app.py` opening a native window (pywebview) |
 | `excel_filler/desktop/settings.py` | the Anthropic API key (Windows Credential Manager through `keyring`, session-only if there is none) and the chosen model; the key is tested with one call before it is saved |
 | `frontend/` | the window's React UI: choose a folder, pick the workbook and documents, watch the work, approve cell changes, answer Claude's questions, ask for corrections, and the Settings / first-run key screen |
 | `packaging/` | the PyInstaller recipe for the Windows app (see *Build the Windows app*) |
 
+## Names and trademarks
+
+ComptaIA is an independent project. It is **not affiliated with, endorsed by or sponsored by** Anthropic,
+Microsoft or any model provider. Names such as Claude, Anthropic, DeepSeek, Microsoft and Excel are trademarks
+of their owners and are used here only to say what the application works with (for example "works with an
+Anthropic API key", "reads and writes .xlsx workbooks"). The former command names `excel-filler` and
+`excel-filler-desktop` still work and point to the same programs.
+
+
 ## Run the desktop app
 
 ```bash
 uv sync --locked
-uv run excel-filler-desktop            # native window (WebView2 on Windows)
-uv run excel-filler-desktop --browser  # or in your browser
+uv run comptaia-desktop            # native window (WebView2 on Windows)
+uv run comptaia-desktop --browser  # or in your browser
 ```
 
 The window's UI comes already built (`excel_filler/desktop/static/`), so running the app needs
@@ -84,7 +93,7 @@ PC: check that it starts on a machine without Python, and that the saved key sur
 
 ```bash
 uv sync
-uv run excel-filler -d path/to/folder costs.xlsx invoice1.pdf invoice2.pdf -n "amounts excl. VAT, one row per line item"
+uv run comptaia -d path/to/folder costs.xlsx invoice1.pdf invoice2.pdf -n "amounts excl. VAT, one row per line item"
 ```
 
 Configuration (environment variables or a `.env` file in the folder you run from). The terminal command has no
@@ -105,7 +114,7 @@ account needs access to the Foundry resource (a role such as *Azure AI User*, gr
 Optional: `AZURE_TENANT_ID` (the resource's tenant, if not your account's) and `AZURE_CLIENT_ID`
 (your organization's app registration for the sign-in page).
 
-**Auto mode** (the switch above *Fill workbook*, or `excel-filler --auto`): changes are saved without
+**Auto mode** (the switch above *Fill workbook*, or `comptaia --auto`): changes are saved without
 asking and Claude's questions are not asked; missing or ambiguous values are left empty and listed at
 the end. A workbook with features that saving would damage still asks first.
 

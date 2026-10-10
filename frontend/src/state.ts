@@ -90,12 +90,12 @@ function activityOf(state: State, event: AgentEvent): string | null {
   const last = state.items[state.items.length - 1]
   switch (event.type) {
     case 'busy':
-      return event.busy ? 'Starting: Claude receives the workbook and the documents…' : ''
+      return event.busy ? 'Starting: the assistant receives the workbook and the documents…' : ''
     case 'thinking':
-      return 'Claude is thinking…'
+      return 'The assistant is thinking…'
     case 'assistant_start':
     case 'text':
-      return 'Claude is writing…'
+      return 'The assistant is writing…'
     case 'tool':
     case 'tool_detail':
       return last?.kind === 'step' ? doing(last.label, last.detail) + '…' : null
@@ -107,10 +107,10 @@ function activityOf(state: State, event: AgentEvent): string | null {
       return 'Waiting for your answer…'
     case 'answered':
     case 'tool_result':
-      return 'Claude is looking at the result…'
+      return 'The assistant is looking at the result…'
     case 'assistant_end':
       // The tool Claude asked for runs now: keep saying what it does.
-      return last?.kind === 'step' ? null : 'Claude is working…'
+      return last?.kind === 'step' ? null : 'The assistant is working…'
     default:
       return null
   }
